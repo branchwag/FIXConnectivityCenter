@@ -1,0 +1,30 @@
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=6535=A34=149=FIXDEV52=20240507-23:30:18.01056=TEST98=0108=3010=253
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=6235=A49=TEST56=FIXDEV34=4352=20240507-23:30:1898=0108=3010=113
+==== Event: ====
+Received logon response
+==== Event: ====
+MsgSeqNum too high, expecting 1 but received 43
+==== Event: ====
+Sent ResendRequest FROM: 1 TO: 0
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=6235=234=249=FIXDEV52=20240507-23:30:18.04356=TEST7=116=010=084
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=5035=049=TEST56=FIXDEV34=4452=20240507-23:30:3910=072
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=5335=034=349=FIXDEV52=20240507-23:30:48.05156=TEST10=218
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=4935=049=TEST56=FIXDEV34=152=20240507-23:31:0910=023
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=5335=034=449=FIXDEV52=20240507-23:31:18.06956=TEST10=226
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=4935=049=TEST56=FIXDEV34=252=20240507-23:31:3910=027
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=5335=034=549=FIXDEV52=20240507-23:31:48.08256=TEST10=225

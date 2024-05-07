@@ -4,10 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
-
-	"github.com/fatih/color"
-	"github.com/gosuri/uitable"
 
 	"github.com/quickfixgo/quickfix"
 )
@@ -54,73 +50,50 @@ func (a *FIXApplication) FromApp(msg *quickfix.Message, sessionID quickfix.Sessi
 
 type screenLog struct {
 	prefix string
+	file   *os.File
 }
 
 func (l screenLog) OnIncoming(s []byte) {
-	table := uitable.New()
-	table.MaxColWidth = 150
-	table.Wrap = true // wrap columns
-
-	table.AddRow(" |Time:", fmt.Sprintf("%v", time.Now().UTC()))
-	table.AddRow(" |Session:", l.prefix)
-	table.AddRow(" |Content:", string(s))
-
-	color.Set(color.Bold, color.FgBlue)
-	fmt.Println("<=== Incoming FIX Msg: <===")
-	fmt.Println(table)
-	color.Unset()
+	fmt.Fprintf(l.file, "<=== Incoming FIX Msg: <===\n%s\n", string(s))
 }
 
 func (l screenLog) OnOutgoing(s []byte) {
-	table := uitable.New()
-	table.MaxColWidth = 150
-	table.Wrap = true // wrap columns
-
-	table.AddRow(" |Time:", fmt.Sprintf("%v", time.Now().UTC()))
-	table.AddRow(" |Session:", l.prefix)
-	table.AddRow(" |Content:", string(s))
-
-	color.Set(color.Bold, color.FgMagenta)
-	fmt.Println("===> Outgoing FIX Msg: ===>")
-	fmt.Println(table)
-	color.Unset()
+	fmt.Fprintf(l.file, "===> Outgoing FIX Msg: ===>\n%s\n", string(s))
 }
 
 func (l screenLog) OnEvent(s string) {
-
-	table := uitable.New()
-	table.MaxColWidth = 150
-	table.Wrap = true // wrap columns
-
-	table.AddRow(" |Time:", fmt.Sprintf("%v", time.Now().UTC()))
-	table.AddRow(" |Session:", l.prefix)
-	table.AddRow(" |Content:", s)
-
-	color.Set(color.Bold, color.FgCyan)
-	fmt.Println("==== Event: ====")
-	fmt.Println(table)
-	color.Unset()
+	fmt.Fprintf(l.file, "==== Event: ====\n%s\n", s)
 }
 
 func (l screenLog) OnEventf(format string, a ...interface{}) {
 	l.OnEvent(fmt.Sprintf(format, a...))
 }
 
-type screenLogFactory struct{}
-
-func (screenLogFactory) Create() (quickfix.Log, error) {
-	log := screenLog{"GLOBAL"}
-	return log, nil
+type screenLogFactory struct{
+	filePath string
 }
 
-func (screenLogFactory) CreateSessionLog(sessionID quickfix.SessionID) (quickfix.Log, error) {
-	log := screenLog{sessionID.String()}
-	return log, nil
+func (f screenLogFactory) Create() (quickfix.Log, error) {
+    file, err := os.OpenFile(f.filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+        return nil, err
+    }
+    log := screenLog{"GLOBAL", file}
+    return log, nil
+}
+
+func (f screenLogFactory) CreateSessionLog(sessionID quickfix.SessionID) (quickfix.Log, error) {
+    file, err := os.OpenFile(f.filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+        return nil, err
+    }
+    log := screenLog{sessionID.String(), file}
+    return log, nil
 }
 
 // NewFancyLog creates an instance of LogFactory that writes messages and events to stdout.
-func NewFancyLog() quickfix.LogFactory {
-	return screenLogFactory{}
+func NewFancyLog(filePath string) quickfix.LogFactory {
+	return screenLogFactory{filePath}
 }
 
 
@@ -131,7 +104,7 @@ func main() {
 	}
 
 	//logFactory := quickfix.NewScreenLogFactory()
-	logFactory := NewFancyLog()
+	logFactory := NewFancyLog("./logfile.log")
 
 	cfg, err := os.Open("sessions.cfg")
 	if err != nil {
