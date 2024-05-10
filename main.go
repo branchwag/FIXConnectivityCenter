@@ -99,6 +99,8 @@ func NewFancyLog(filePath string) quickfix.LogFactory {
 
 func main() {
 
+	//startWebServer()
+
 	fixApp := &FIXApplication{
 		SessionIDs: make(map[string]quickfix.SessionID),
 	}
@@ -130,5 +132,7 @@ func main() {
 	defer initiator.Stop()
 
 	select {}
+
+	
 }
 
