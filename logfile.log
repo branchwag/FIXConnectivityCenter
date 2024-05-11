@@ -46,3 +46,101 @@ Received logon response
 8=FIX.4.49=5335=034=249=FIXDEV52=20240510-01:30:47.03156=TEST10=204
 <=== Incoming FIX Msg: <===
 8=FIX.4.49=4935=049=TEST56=FIXDEV34=352=20240510-01:31:0310=009
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=6535=A34=149=FIXDEV52=20240511-11:07:31.00656=TEST98=0108=3010=249
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=6135=A49=TEST56=FIXDEV34=452=20240511-11:07:3198=0108=3010=052
+==== Event: ====
+Received logon response
+==== Event: ====
+MsgSeqNum too high, expecting 1 but received 4
+==== Event: ====
+Sent ResendRequest FROM: 1 TO: 0
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=6235=234=249=FIXDEV52=20240511-11:07:31.02456=TEST7=116=010=074
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=4935=049=TEST56=FIXDEV34=552=20240511-11:07:4610=023
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=5335=034=349=FIXDEV52=20240511-11:08:01.02756=TEST10=207
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=6535=A34=149=FIXDEV52=20240511-11:14:12.02056=TEST98=0108=3010=242
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=6135=A49=TEST56=FIXDEV34=652=20240511-11:14:1298=0108=3010=051
+==== Event: ====
+Received logon response
+==== Event: ====
+MsgSeqNum too high, expecting 1 but received 6
+==== Event: ====
+Sent ResendRequest FROM: 1 TO: 0
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=6235=234=249=FIXDEV52=20240511-11:14:12.04456=TEST7=116=010=073
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=4935=049=TEST56=FIXDEV34=752=20240511-11:14:1710=021
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=5335=034=349=FIXDEV52=20240511-11:14:42.05056=TEST10=205
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=4935=049=TEST56=FIXDEV34=852=20240511-11:14:4710=025
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=5335=034=449=FIXDEV52=20240511-11:15:12.05156=TEST10=205
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=4935=049=TEST56=FIXDEV34=952=20240511-11:15:1710=024
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=5335=034=549=FIXDEV52=20240511-11:15:42.05656=TEST10=214
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=5035=049=TEST56=FIXDEV34=1052=20240511-11:15:4710=059
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=5335=034=649=FIXDEV52=20240511-11:16:12.06656=TEST10=214
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=5035=049=TEST56=FIXDEV34=1152=20240511-11:16:1710=058
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=6535=A34=149=FIXDEV52=20240511-11:17:33.01356=TEST98=0108=3010=250
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=6235=A49=TEST56=FIXDEV34=1252=20240511-11:17:3398=0108=3010=103
+==== Event: ====
+Received logon response
+==== Event: ====
+MsgSeqNum too high, expecting 1 but received 12
+==== Event: ====
+Sent ResendRequest FROM: 1 TO: 0
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=6235=234=249=FIXDEV52=20240511-11:17:33.03556=TEST7=116=010=079
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=5035=049=TEST56=FIXDEV34=1352=20240511-11:17:4710=064
+===> Outgoing FIX Msg: ===>
+8=FIX.4.49=5335=034=349=FIXDEV52=20240511-11:18:03.03756=TEST10=211
+<=== Incoming FIX Msg: <===
+8=FIX.4.49=5035=049=TEST56=FIXDEV34=1452=20240511-11:18:1710=063
+==== Event: ====
+Disconnected
+==== Event: ====
+Reconnecting in 1m0s

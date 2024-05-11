@@ -6,7 +6,7 @@ import (
 )
 
 func startWebServer() {
-
+    go func() {
     fs := http.FileServer(http.Dir("."))
     http.Handle("/", http.StripPrefix("/", fs))
 
@@ -14,4 +14,5 @@ func startWebServer() {
     if err := http.ListenAndServe(":8080", nil); err != nil {
         log.Fatalf("Error starting server: %s", err)
     }
+}()
 }
