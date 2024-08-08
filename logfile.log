@@ -144,3 +144,99 @@ Sent ResendRequest FROM: 1 TO: 0
 Disconnected
 ==== Event: ====
 Reconnecting in 1m0s
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6535=A34=149=FIXDEV52=20240808-23:25:06.00256=TEST98=0108=3010=001
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=6235=A49=TEST56=FIXDEV34=1552=20240808-23:25:0698=0108=3010=115
+==== Event: ====
+Received logon response
+==== Event: ====
+MsgSeqNum too high, expecting 1 but received 15
+==== Event: ====
+Sent ResendRequest FROM: 1 TO: 0
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6235=234=249=FIXDEV52=20240808-23:25:06.02456=TEST7=116=010=086
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=5035=049=TEST56=FIXDEV34=1652=20240808-23:25:3510=073
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=5335=034=349=FIXDEV52=20240808-23:25:36.03756=TEST10=225
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=5035=049=TEST56=FIXDEV34=1752=20240808-23:26:0510=072
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=5335=034=449=FIXDEV52=20240808-23:26:06.04056=TEST10=218
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=5035=049=TEST56=FIXDEV34=1852=20240808-23:26:3510=076
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=5335=034=549=FIXDEV52=20240808-23:26:36.04956=TEST10=231
+==== Event: ====
+Disconnected
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
