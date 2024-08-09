@@ -16,10 +16,8 @@
     <table class="table table-dark table-hover">
       <thead>
         <tr>
-          <th>FIX Version</th>
-          <th>SenderCompID</th>
-          <th>TargetCompID</th>
-          <th>Session Status</th>
+          <th>Session</th>
+          <th>Status</th>
         </tr>
       </thead>
       <tbody id="sessionTableBody">
@@ -36,9 +34,7 @@
         sessions.forEach((session) => {
           const row = document.createElement("tr");
           row.innerHTML = `
-              <td>${session.BeginString}</td>
-              <td>${session.SenderCompID}</td>
-              <td>${session.TargetCompID}</td>
+              <td>${session.SessionID}</td>
               <td>${session.Status}</td>
           `;
           tableBody.appendChild(row);

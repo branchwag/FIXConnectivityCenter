@@ -2,7 +2,7 @@ module fixstatus
 
 go 1.22.0
 
-require github.com/quickfixgo/quickfix v0.9.2
+require github.com/quickfixgo/quickfix v0.9.4
 
 require (
 	github.com/pires/go-proxyproto v0.7.0 // indirect

@@ -270,3 +270,215 @@ Sent ResendRequest FROM: 1 TO: 0
 8=FIX.4.29=5035=049=TEST56=FIXDEV34=2052=20240809-00:14:3510=062
 ===> Outgoing FIX Msg: ===>
 8=FIX.4.29=5335=034=349=FIXDEV52=20240809-00:14:46.05856=TEST10=223
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6535=A34=149=FIXDEV52=20240809-02:13:31.01556=TEST98=0108=3010=254
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=6235=A49=TEST56=FIXDEV34=2152=20240809-02:13:3198=0108=3010=105
+==== Event: ====
+Received logon response
+==== Event: ====
+MsgSeqNum too high, expecting 1 but received 21
+==== Event: ====
+Sent ResendRequest FROM: 1 TO: 0
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6235=234=249=FIXDEV52=20240809-02:13:31.05556=TEST7=116=010=083
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=5035=049=TEST56=FIXDEV34=2252=20240809-02:13:5010=062
+==== Event: ====
+read tcp 127.0.0.1:52296->127.0.0.1:9823: wsarecv: An existing connection was forcibly closed by the remote host.
+==== Event: ====
+Disconnected
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6535=A34=149=FIXDEV52=20240809-02:18:31.00756=TEST98=0108=3010=004
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=6235=A49=TEST56=FIXDEV34=2352=20240809-02:18:3198=0108=3010=112
+==== Event: ====
+Received logon response
+==== Event: ====
+MsgSeqNum too high, expecting 1 but received 23
+==== Event: ====
+Sent ResendRequest FROM: 1 TO: 0
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6235=234=249=FIXDEV52=20240809-02:18:31.02456=TEST7=116=010=084
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=5035=049=TEST56=FIXDEV34=2452=20240809-02:18:3710=074
+==== Event: ====
+read tcp 127.0.0.1:52340->127.0.0.1:9823: wsarecv: An existing connection was forcibly closed by the remote host.
+==== Event: ====
+Disconnected
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6535=A34=149=FIXDEV52=20240809-02:39:29.00856=TEST98=0108=3010=015
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=6235=A49=TEST56=FIXDEV34=2552=20240809-02:39:2998=0108=3010=124
+==== Event: ====
+Received logon response
+==== Event: ====
+MsgSeqNum too high, expecting 1 but received 25
+==== Event: ====
+Sent ResendRequest FROM: 1 TO: 0
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6235=234=249=FIXDEV52=20240809-02:39:29.06556=TEST7=116=010=099
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=5035=049=TEST56=FIXDEV34=2652=20240809-02:39:3110=073
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=5335=034=349=FIXDEV52=20240809-02:39:59.06756=TEST10=236
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=5035=049=TEST56=FIXDEV34=2752=20240809-02:40:0110=063
+==== Event: ====
+EOF
+==== Event: ====
+Disconnected
+==== Event: ====
+Reconnecting in 1m0s
