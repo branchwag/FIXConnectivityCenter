@@ -240,3 +240,33 @@ Connecting to: 127.0.0.1:9823
 Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
 ==== Event: ====
 Reconnecting in 1m0s
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 1m0s
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6535=A34=149=FIXDEV52=20240809-00:14:16.01056=TEST98=0108=3010=251
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=6235=A49=TEST56=FIXDEV34=1952=20240809-00:14:1698=0108=3010=114
+==== Event: ====
+Received logon response
+==== Event: ====
+MsgSeqNum too high, expecting 1 but received 19
+==== Event: ====
+Sent ResendRequest FROM: 1 TO: 0
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6235=234=249=FIXDEV52=20240809-00:14:16.04756=TEST7=116=010=086
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=5035=049=TEST56=FIXDEV34=2052=20240809-00:14:3510=062
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=5335=034=349=FIXDEV52=20240809-00:14:46.05856=TEST10=223

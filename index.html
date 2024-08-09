@@ -22,26 +22,30 @@
           <th>Session Status</th>
         </tr>
       </thead>
-      <tbody>
-        <tr>
-          <td>FIX.4.2</td>
-          <td>YOUR_SENDER_COMP_ID</td>
-          <td>YOUR_TARGET_COMP_ID</td>
-          <td>Active</td>
-        </tr>
-        <tr>
-          <td>FIX.4.4</td>
-          <td>ANOTHER_SENDER_COMP_ID</td>
-          <td>ANOTHER_TARGET_COMP_ID</td>
-          <td>Disconnected</td>
-        </tr>
-        <tr>
-          <td>FIX.5.0</td>
-          <td>DIFFERENT_SENDER_COMP_ID</td>
-          <td>DIFFERENT_TARGET_COMP_ID</td>
-          <td>Active</td>
-        </tr>
+      <tbody id="sessionTableBody">
+        <!--Dynamically updated-->
       </tbody>
     </table>
+
+    <script>
+      async function loadSessions() {
+        const response = await fetch("/sessions");
+        const sessions = await response.json();
+        const tableBody = document.getElementById("sessionTableBody");
+
+        sessions.forEach((session) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+              <td>${session.BeginString}</td>
+              <td>${session.SenderCompID}</td>
+              <td>${session.TargetCompID}</td>
+              <td>${session.Status}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      window.onload = loadSessions;
+    </script>
   </body>
 </html>

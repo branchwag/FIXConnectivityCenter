@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,7 +14,22 @@ type FIXApplication struct {
 	SessionIDs map[string]quickfix.SessionID
 }
 
-func startWebServer() {
+func startWebServer(fixApp *FIXApplication) {
+	http.HandleFunc("/sessions", func(w http.ResponseWriter, r *http.Request) {
+		sessionDetails := []map[string]string{}
+		for _, sessionID := range fixApp.SessionIDs {
+			sessionDetail := map[string]string{
+				"BeginString": sessionID.BeginString,
+				"SenderCompID": sessionID.SenderCompID,
+				"TargetCompID": sessionID.TargetCompID,
+				"Status": 	"Active", //assuming all sessions active for now
+			}
+			sessionDetails = append(sessionDetails, sessionDetail)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(sessionDetails)
+	})
+
     go func() {
     fs := http.FileServer(http.Dir("."))
     http.Handle("/", http.StripPrefix("/", fs))
@@ -112,12 +128,13 @@ func NewFancyLog(filePath string) quickfix.LogFactory {
 
 func main() {
 
-	startWebServer()
-
+	
 	fixApp := &FIXApplication{
 		SessionIDs: make(map[string]quickfix.SessionID),
 	}
 
+	startWebServer(fixApp)
+	
 	//logFactory := quickfix.NewScreenLogFactory()
 	logFactory := NewFancyLog("./logfile.log")
 
