@@ -72,7 +72,6 @@ func (a *FIXApplication) FromApp(msg *quickfix.Message, sessionID quickfix.Sessi
 			return
 		}
 	
-		// Marshal the protobuf message to binary format
 		data, err := proto.Marshal(protoMsg)
 		if err != nil {
 			log.Printf("Failed to marshal proto message: %v", err)
@@ -117,6 +116,8 @@ func startWebServer(fixApp *FIXApplication) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(sessionDetails)
 	})
+
+	http.HandleFunc("/protobuf-messages", serveProtoMessages)
 
 	go func() {
 		fs := http.FileServer(http.Dir("."))
@@ -251,6 +252,29 @@ func ConvertToProto(fixMsg *quickfix.Message) (*pb.FIXMessage, error) {
     return protoMsg, nil
 }
 
+
+func serveProtoMessages(w http.ResponseWriter, r *http.Request) {
+	data, err := os.ReadFile("./output_messages.pb")
+	if err != nil {
+		http.Error(w, "Failed to read protobuf file", http.StatusInternalServerError)
+		return
+	}
+
+	var protoMsg pb.FIXMessage
+	err = proto.Unmarshal(data, &protoMsg)
+	if err != nil {
+		http.Error(w, "Failed to unmarshal protobuf data", http.StatusInternalServerError)
+	}
+
+	jsonData, err := json.Marshal(protoMsg)
+	if err != nil {
+		http.Error(w, "Failed to encode protobuf message as JSON", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonData)
+}
 
 
 
