@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+option go_package = "./model";
+
+// Define an enumeration for message types (e.g., New Order, Cancel Order)
+enum MsgType {
+    UNKNOWN = 0;
+    NEW_ORDER = 1;        // New order - Single
+    CANCEL_ORDER = 2;     // Order Cancel Request
+    EXECUTION_REPORT = 3; // Execution Report
+}
+
+// Define an enumeration for order sides
+enum Side {
+    BUY = 0;
+    SELL = 1;
+}
+
+// Define an enumeration for order statuses
+enum OrdStatus {
+    NEW = 0;
+    PARTIALLY_FILLED = 1;
+    FILLED = 2;
+    CANCELED = 3;
+}
+
+// Define the structure of a ContraBroker repeating group
+message ContraBrokerGroup {
+    string contra_broker = 1;  // ContraBroker (Tag 375)
+    string contra_trader = 2;  // ContraTrader (Tag 337)
+    string contra_trade_qty = 3; // ContraTradeQty (Tag 437)
+    string contra_trade_time = 4; // ContraTradeTime (Tag 438)
+}
+
+// Define the structure of a FIX message
+message FIXMessage {
+    string sender_comp_id = 1;  // SenderCompID (Tag 49)
+    string target_comp_id = 2;  // TargetCompID (Tag 56)
+    int32 msg_seq_num = 3;      // MsgSeqNum (Tag 34)
+    MsgType msg_type = 4;       // MsgType (Tag 35)
+    string sending_time = 5;    // SendingTime (Tag 52)
+
+    // New Order - Single specific fields
+    string cl_ord_id = 6;       // ClOrdID (Tag 11)
+    string symbol = 7;          // Symbol (Tag 55)
+    Side side = 8;              // Side (Tag 54)
+    double order_qty = 9;       // OrderQty (Tag 38)
+    double price = 10;          // Price (Tag 44)
+    string transact_time = 11;  // TransactTime (Tag 60)
+
+    // Execution Report specific fields
+    string exec_id = 12;        // ExecID (Tag 17)
+    OrdStatus ord_status = 13;  // OrdStatus (Tag 39)
+    double last_qty = 14;       // LastQty (Tag 32)
+    double last_price = 15;     // LastPx (Tag 31)
+
+    // Repeating group for ContraBrokers
+    repeated ContraBrokerGroup contra_brokers = 16;  // NoContraBrokers (Tag 382)
+
+    // Additional fields can be added here...
+}
