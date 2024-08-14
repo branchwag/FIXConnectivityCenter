@@ -6,9 +6,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 
+	pb "fixstatus/model"
+
 	"github.com/quickfixgo/quickfix"
+	"google.golang.org/protobuf/proto"
 )
 
 type FIXApplication struct {
@@ -50,6 +54,7 @@ func (a *FIXApplication) ToAdmin(msg *quickfix.Message, sessionID quickfix.Sessi
 
 // FromAdmin is called when an admin message is received.
 func (a *FIXApplication) FromAdmin(msg *quickfix.Message, sessionID quickfix.SessionID) (reject quickfix.MessageRejectError) {
+
 	return
 }
 
@@ -60,7 +65,36 @@ func (a *FIXApplication) ToApp(msg *quickfix.Message, sessionID quickfix.Session
 
 // FromApp is called when an app message is received.
 func (a *FIXApplication) FromApp(msg *quickfix.Message, sessionID quickfix.SessionID) (reject quickfix.MessageRejectError) {
-	return
+		log.Printf("FromApp function called")
+		protoMsg, err := ConvertToProto(msg)
+		if err != nil {
+			log.Printf("Error converting FIX message to proto: %v", err)
+			return
+		}
+	
+		// Marshal the protobuf message to binary format
+		data, err := proto.Marshal(protoMsg)
+		if err != nil {
+			log.Printf("Failed to marshal proto message: %v", err)
+			return
+		}
+	
+		// Write the binary data to a file
+		outputFile := "./output_messages.pb"
+		file, err := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Printf("Error opening output file: %v", err)
+			return
+		}
+		defer file.Close()
+	
+		if _, err := file.Write(data); err != nil {
+			log.Printf("Error writing proto message to file: %v", err)
+			return
+		}
+	
+		log.Printf("FIX message from session %s has been written to %s\n", sessionID, outputFile)
+		return
 }
 
 func startWebServer(fixApp *FIXApplication) {
@@ -142,6 +176,83 @@ func (f screenLogFactory) CreateSessionLog(sessionID quickfix.SessionID) (quickf
 func NewFancyLog(filePath string) quickfix.LogFactory {
 	return screenLogFactory{filePath}
 }
+
+func ConvertToProto(fixMsg *quickfix.Message) (*pb.FIXMessage, error) {
+    protoMsg := &pb.FIXMessage{}
+
+    // Extract FIX fields and populate the protobuf message
+    if senderCompID, err := fixMsg.Header.GetString(quickfix.Tag(49)); err == nil {
+        protoMsg.SenderCompId = senderCompID
+    }
+    if targetCompID, err := fixMsg.Header.GetString(quickfix.Tag(56)); err == nil {
+        protoMsg.TargetCompId = targetCompID
+    }
+    if msgSeqNum, err := fixMsg.Header.GetInt(quickfix.Tag(34)); err == nil {
+        protoMsg.MsgSeqNum = int32(msgSeqNum)
+    }
+    if msgType, err := fixMsg.Header.GetString(quickfix.Tag(35)); err == nil {
+        protoMsg.MsgType = pb.MsgType(pb.MsgType_value[msgType])
+    }
+    if sendingTime, err := fixMsg.Header.GetString(quickfix.Tag(52)); err == nil {
+        protoMsg.SendingTime = sendingTime
+    }
+
+    // Body fields specific to the message type (e.g., New Order - Single)
+    if clOrdID, err := fixMsg.Body.GetString(quickfix.Tag(11)); err == nil {
+        protoMsg.ClOrdId = clOrdID
+    }
+    if symbol, err := fixMsg.Body.GetString(quickfix.Tag(55)); err == nil {
+        protoMsg.Symbol = symbol
+    }
+    if side, err := fixMsg.Body.GetString(quickfix.Tag(54)); err == nil {
+        protoMsg.Side = pb.Side(pb.Side_value[string(side)])
+    }
+	if orderQtyStr, err := fixMsg.Body.GetString(quickfix.Tag(38)); err == nil {
+		orderQty, err := strconv.ParseFloat(orderQtyStr, 64)
+		if err != nil {
+			log.Printf("Failed to parse OrderQty: %v", err)
+		} else {
+			protoMsg.OrderQty = orderQty
+		}
+	}
+	if priceStr, err := fixMsg.Body.GetString(quickfix.Tag(44)); err == nil {
+		price, err := strconv.ParseFloat(priceStr, 64)
+		if err != nil {
+			log.Printf("Failed to parse Price: %v", err)
+		} else {
+			protoMsg.Price = price
+		}
+	}
+    if transactTime, err := fixMsg.Body.GetString(quickfix.Tag(60)); err == nil {
+        protoMsg.TransactTime = transactTime
+    }
+
+    // Handle repeating group (e.g., NoContraBrokers)
+    noContraBrokersGroup := quickfix.NewRepeatingGroup(quickfix.Tag(382),
+        quickfix.GroupTemplate{
+            quickfix.GroupElement(quickfix.Tag(375)),
+            quickfix.GroupElement(quickfix.Tag(337)),
+        },
+    )
+    if err := fixMsg.Body.GetGroup(noContraBrokersGroup); err == nil {
+        for i := 0; i < noContraBrokersGroup.Len(); i++ {
+            contraGroup := &pb.ContraBrokerGroup{}
+            contraBrokers := noContraBrokersGroup.Get(i)
+            if contraBroker, err := contraBrokers.GetString(quickfix.Tag(375)); err == nil {
+                contraGroup.ContraBroker = contraBroker
+            }
+            if contraTrader, err := contraBrokers.GetString(quickfix.Tag(337)); err == nil {
+                contraGroup.ContraTrader = contraTrader
+            }
+            protoMsg.ContraBrokers = append(protoMsg.ContraBrokers, contraGroup)
+        }
+    }
+
+    return protoMsg, nil
+}
+
+
+
 
 func main() {
 	fixApp := &FIXApplication{
