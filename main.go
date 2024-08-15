@@ -1,13 +1,16 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	pb "fixstatus/model"
@@ -19,6 +22,39 @@ import (
 type FIXApplication struct {
 	SessionStatus map[string]bool
 	mu            sync.RWMutex
+}
+
+func ReadCSV(filePath string) ([]map[string]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	var records []map[string]string
+	header, err := reader.Read()
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		message := make(map[string]string)
+		for i, value := range record {
+			message[header[i]] = value
+		}
+		records = append(records, message)
+	}
+
+	return records, nil
 }
 
 // OnCreate is called when a new session is created.
@@ -96,6 +132,55 @@ func (a *FIXApplication) FromApp(msg *quickfix.Message, sessionID quickfix.Sessi
 		}()
 		return
 }
+
+func SendFIXMessageFromCSV(fixApp *FIXApplication, sessionID quickfix.SessionID, data map[string]string) error {
+	msg := quickfix.NewMessage()
+
+	msgType := data["MsgType"]
+	msg.Header.SetField(quickfix.Tag(35), quickfix.FIXString(msgType))
+
+    senderCompID := data["SenderCompID"]
+    targetCompID := data["TargetCompID"]
+    msg.Header.SetField(quickfix.Tag(49), quickfix.FIXString(senderCompID))
+    msg.Header.SetField(quickfix.Tag(56), quickfix.FIXString(targetCompID))
+
+	// Remove these fields from the map as they are already set
+	delete(data, "MsgType")
+	delete(data, "SenderCompID")
+	delete(data, "TargetCompID")
+
+	// Set other FIX fields
+	for tag, value := range data {
+		tagNum, err := strconv.Atoi(tag)
+		if err != nil {
+			log.Printf("Invalid FIX tag: %s", tag)
+			continue
+		}
+        // Assuming all fields in the CSV are string fields
+        msg.Body.SetField(quickfix.Tag(tagNum), quickfix.FIXString(value))
+	}
+
+    // fixApp.mu.RLock()
+    // sessionActive := fixApp.SessionStatus[sessionID.String()]
+    // fixApp.mu.RUnlock()
+
+    // if !sessionActive {
+    //     return fmt.Errorf("failed to send FIX message: session %s is not active", sessionID)
+    // }
+
+    log.Printf("Attempting to send message to SessionID: %s\n", sessionID.String())
+
+
+	// Send the message using the FIX session
+	err := quickfix.SendToTarget(msg, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to send FIX message: %v", err)
+	}
+
+	log.Printf("Message sent: %v", msg)
+	return nil
+}
+
 
 func startWebServer(fixApp *FIXApplication) {
 	http.HandleFunc("/sessions", func(w http.ResponseWriter, r *http.Request) {
@@ -285,5 +370,55 @@ func main() {
 	}
 	defer initiator.Stop()
 
-	select {}
+    // Wait for a logon to occur
+    for {
+        fixApp.mu.RLock()
+        for sessionIDStr, connected := range fixApp.SessionStatus {
+            if connected {
+                fixApp.mu.RUnlock()
+
+                // Manually construct SessionID from string
+                sessionIDParts := strings.Split(sessionIDStr, ":")
+                if len(sessionIDParts) != 2 {
+                    log.Fatalf("Invalid SessionID format: %s", sessionIDStr)
+                }
+
+				beginString := sessionIDParts[0]
+                senderTargetParts := strings.Split(sessionIDParts[1], "->")
+                if len(senderTargetParts) != 2 {
+                    log.Fatalf("Invalid SenderCompID and TargetCompID format: %s", sessionIDStr)
+                }
+
+                senderCompID := senderTargetParts[0]
+                targetCompID := senderTargetParts[1]
+                
+                // Create SessionID manually
+                sid := quickfix.SessionID{
+                    BeginString: beginString,
+                    SenderCompID: senderCompID,
+                    TargetCompID: targetCompID,
+                }
+                
+                log.Printf("Constructed SessionID: %s", sid.String())
+
+                // Read CSV file
+                csvData, err := ReadCSV("messages.csv")
+                if err != nil {
+                    log.Fatalf("Error reading CSV file: %v", err)
+                }
+
+                // Send each message from the CSV
+                for _, record := range csvData {
+                    err := SendFIXMessageFromCSV(fixApp, sid, record)
+                    if err != nil {
+                        log.Printf("Error sending FIX message: %v", err)
+                    }
+                }
+
+                return // Exit after sending messages
+            }
+        }
+        fixApp.mu.RUnlock()
+    }
 }
+	
