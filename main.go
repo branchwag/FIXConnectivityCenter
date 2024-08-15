@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	pb "fixstatus/model"
 
@@ -392,7 +393,6 @@ func main() {
                 senderCompID := senderTargetParts[0]
                 targetCompID := senderTargetParts[1]
                 
-                // Create SessionID manually
                 sid := quickfix.SessionID{
                     BeginString: beginString,
                     SenderCompID: senderCompID,
@@ -401,13 +401,11 @@ func main() {
                 
                 log.Printf("Constructed SessionID: %s", sid.String())
 
-                // Read CSV file
                 csvData, err := ReadCSV("messages.csv")
                 if err != nil {
                     log.Fatalf("Error reading CSV file: %v", err)
                 }
 
-                // Send each message from the CSV
                 for _, record := range csvData {
                     err := SendFIXMessageFromCSV(fixApp, sid, record)
                     if err != nil {
@@ -415,9 +413,19 @@ func main() {
                     }
                 }
 
-                return // Exit after sending messages
+              // Keep the session alive
+			  for {
+				fixApp.mu.RLock()
+				active := fixApp.SessionStatus[sessionIDStr]
+				fixApp.mu.RUnlock()
+				if !active {
+					log.Println("Session is no longer active. Exiting.")
+					return
+				}
+				time.Sleep(30 * time.Second) // Wait and check again
             }
         }
+	}
         fixApp.mu.RUnlock()
     }
 }
