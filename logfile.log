@@ -676,3 +676,43 @@ EOF
 Disconnected
 ==== Event: ====
 Reconnecting in 1m0s
+==== Event: ====
+Created session
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 10s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Failed to connect: dial tcp 127.0.0.1:9823: connectex: No connection could be made because the target machine actively refused it.
+==== Event: ====
+Reconnecting in 10s
+==== Event: ====
+Connecting to: 127.0.0.1:9823
+==== Event: ====
+Sending logon request
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=6535=A34=149=FIXDEV52=20240815-02:00:48.03456=TEST98=0108=3010=000
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=6135=A49=TEST56=FIXDEV34=152=20240815-02:00:4898=0108=3010=055
+==== Event: ====
+Received logon response
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=12135=D49=TEST56=FIXDEV34=252=20240815-02:00:5811=151144630221=155=AAPL54=160=20240815-02:00:5840=244=5038=200010=175
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=4935=049=TEST56=FIXDEV34=352=20240815-02:01:0710=017
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=5335=034=249=FIXDEV52=20240815-02:01:18.04856=TEST10=215
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=4935=049=TEST56=FIXDEV34=452=20240815-02:01:3710=021
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=5335=034=349=FIXDEV52=20240815-02:01:48.06156=TEST10=214
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=4935=049=TEST56=FIXDEV34=552=20240815-02:02:0710=020
+===> Outgoing FIX Msg: ===>
+8=FIX.4.29=5335=034=449=FIXDEV52=20240815-02:02:18.06856=TEST10=220
+<=== Incoming FIX Msg: <===
+8=FIX.4.29=4935=049=TEST56=FIXDEV34=652=20240815-02:02:3710=024
