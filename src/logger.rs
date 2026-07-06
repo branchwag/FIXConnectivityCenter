@@ -3,6 +3,7 @@
 
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::path::Path;
 use std::sync::Mutex;
 
 use quickfix::{LogCallback, SessionId};
@@ -13,6 +14,12 @@ pub struct FileLogger {
 
 impl FileLogger {
     pub fn new(path: &str) -> std::io::Result<Self> {
+        // Create the log directory (e.g. ./logs) if it doesn't exist yet.
+        if let Some(dir) = Path::new(path).parent() {
+            if !dir.as_os_str().is_empty() {
+                std::fs::create_dir_all(dir)?;
+            }
+        }
         let file = OpenOptions::new().create(true).append(true).open(path)?;
         Ok(Self {
             file: Mutex::new(file),

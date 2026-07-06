@@ -24,7 +24,7 @@ fn run_fix(
     logged_on: SharedSession,
     events: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let logger = logger::FileLogger::new("./logfile.log")?;
+    let logger = logger::FileLogger::new("./logs/logfile.log")?;
     let log_factory = LogFactory::try_new(&logger)?;
     let settings = SessionSettings::try_from_path("sessions.cfg")?;
     let store_factory = MemoryMessageStoreFactory::new();
