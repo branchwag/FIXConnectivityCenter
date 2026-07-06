@@ -41,6 +41,22 @@
       const meta = document.getElementById("meta");
       const offline = document.getElementById("offline");
 
+      // Dashboard state, composed into the meta line. `live` tracks the SSE
+      // connection health (updates in real time); `lastChange` is the time of
+      // the last actual session change (only moves when something changes).
+      let live = false;
+      let connected = 0;
+      let total = 0;
+      let lastChange = null;
+
+      function renderMeta() {
+        const dot = live
+          ? '<span class="text-success">●</span> monitoring live'
+          : '<span class="text-danger">●</span> offline';
+        const changed = lastChange ? ` · last session event ${lastChange}` : "";
+        meta.innerHTML = `${dot} · ${connected}/${total} connected${changed}`;
+      }
+
       function badge(status) {
         const cls = status === "Connected" ? "bg-success" : "bg-secondary";
         return `<span class="badge ${cls}">${status}</span>`;
@@ -65,9 +81,10 @@
           }
         }
 
-        const connected = sessions.filter((s) => s.Status === "Connected").length;
-        const now = new Date().toLocaleTimeString();
-        meta.textContent = `${connected}/${sessions.length} connected · updated ${now}`;
+        connected = sessions.filter((s) => s.Status === "Connected").length;
+        total = sessions.length;
+        lastChange = new Date().toLocaleTimeString();
+        renderMeta();
       }
 
       // Server-Sent Events: the server pushes a fresh snapshot on every session
@@ -75,17 +92,25 @@
       // restarts, so no polling loop is needed.
       function connect() {
         const es = new EventSource("/events");
+        es.onopen = () => {
+          live = true;
+          offline.classList.add("d-none");
+          renderMeta();
+        };
         es.onmessage = (e) => {
+          live = true;
           offline.classList.add("d-none");
           render(JSON.parse(e.data));
         };
         es.onerror = () => {
+          live = false;
           offline.classList.remove("d-none");
-          meta.textContent = "reconnecting…";
+          renderMeta();
           // EventSource retries on its own; nothing else to do.
         };
       }
 
+      renderMeta();
       connect();
     </script>
   </body>
