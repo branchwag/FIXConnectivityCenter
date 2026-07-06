@@ -14,7 +14,7 @@ use quickfix::{
 };
 use tokio::sync::broadcast;
 
-use fix_app::{FixApp, SharedSession, SharedStatus};
+use fix_app::{FixApp, SharedLastEvent, SharedSession, SharedStatus};
 use web::AppState;
 
 /// Run the FIX initiator: start the engine, wait for a logon, send the CSV
@@ -22,13 +22,14 @@ use web::AppState;
 fn run_fix(
     status: SharedStatus,
     logged_on: SharedSession,
+    last_event: SharedLastEvent,
     events: broadcast::Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let logger = logger::FileLogger::new("./logs/logfile.log")?;
     let log_factory = LogFactory::try_new(&logger)?;
     let settings = SessionSettings::try_from_path("sessions.cfg")?;
     let store_factory = MemoryMessageStoreFactory::new();
-    let callbacks = FixApp::new(status.clone(), logged_on.clone(), events);
+    let callbacks = FixApp::new(status.clone(), logged_on.clone(), last_event, events);
     let app = Application::try_new(&callbacks)?;
 
     let mut initiator = Initiator::try_new(
@@ -70,18 +71,25 @@ fn run_fix(
 async fn main() {
     let status: SharedStatus = Arc::new(Mutex::new(HashMap::new()));
     let logged_on: SharedSession = Arc::new(Mutex::new(None));
+    let last_event: SharedLastEvent = Arc::new(Mutex::new(None));
     // Status-change events pushed by the FIX callbacks and streamed to the
     // dashboard over SSE.
     let (events, _) = broadcast::channel::<String>(64);
 
     let fix_status = status.clone();
     let fix_logged = logged_on.clone();
+    let fix_last_event = last_event.clone();
     let fix_events = events.clone();
     std::thread::spawn(move || {
-        if let Err(e) = run_fix(fix_status, fix_logged, fix_events) {
+        if let Err(e) = run_fix(fix_status, fix_logged, fix_last_event, fix_events) {
             eprintln!("FIX engine error: {e}");
         }
     });
 
-    web::serve(AppState { status, events }).await;
+    web::serve(AppState {
+        status,
+        last_event,
+        events,
+    })
+    .await;
 }

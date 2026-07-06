@@ -16,16 +16,17 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::services::ServeDir;
 
-use crate::fix_app::{self, SessionDetail, SharedStatus};
+use crate::fix_app::{self, SharedLastEvent, SharedStatus, Snapshot};
 
 #[derive(Clone)]
 pub struct AppState {
     pub status: SharedStatus,
+    pub last_event: SharedLastEvent,
     pub events: broadcast::Sender<String>,
 }
 
-async fn sessions(State(state): State<AppState>) -> Json<Vec<SessionDetail>> {
-    Json(fix_app::snapshot(&state.status))
+async fn sessions(State(state): State<AppState>) -> Json<Snapshot> {
+    Json(fix_app::snapshot(&state.status, &state.last_event))
 }
 
 async fn events(
@@ -35,7 +36,7 @@ async fn events(
     // through between the two. Each event carries the full session list, so a
     // dropped/lagged message is harmless — the next one is authoritative.
     let live = BroadcastStream::new(state.events.subscribe()).filter_map(|r| r.ok());
-    let initial = tokio_stream::once(fix_app::snapshot_json(&state.status));
+    let initial = tokio_stream::once(fix_app::snapshot_json(&state.status, &state.last_event));
 
     let stream = initial
         .chain(live)

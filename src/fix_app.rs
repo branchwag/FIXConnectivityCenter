@@ -15,7 +15,19 @@ use crate::proto;
 /// Session id string -> connected?  (shared with the web layer).
 pub type SharedStatus = Arc<Mutex<HashMap<String, bool>>>;
 
-/// One row of the dashboard, serialized for both `/sessions` and the SSE stream.
+/// Epoch-millis of the last real connect/disconnect (shared with the web layer).
+/// Server-owned so the dashboard's "last session event" time doesn't move on a
+/// page refresh — only when a session actually logs on or out.
+pub type SharedLastEvent = Arc<Mutex<Option<u64>>>;
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+/// One row of the dashboard.
 #[derive(Serialize)]
 pub struct SessionDetail {
     #[serde(rename = "SessionID")]
@@ -24,10 +36,18 @@ pub struct SessionDetail {
     pub status: String,
 }
 
-/// Current status of every session the engine knows about, sorted by id for a
-/// stable dashboard order.
-pub fn snapshot(status: &SharedStatus) -> Vec<SessionDetail> {
-    let mut rows: Vec<SessionDetail> = status
+/// Full dashboard payload for `/sessions` and the SSE stream: every session the
+/// engine knows about (sorted by id for a stable order), plus the time of the
+/// last actual connect/disconnect.
+#[derive(Serialize)]
+pub struct Snapshot {
+    pub sessions: Vec<SessionDetail>,
+    #[serde(rename = "lastEventAt")]
+    pub last_event_at: Option<u64>,
+}
+
+pub fn snapshot(status: &SharedStatus, last_event: &SharedLastEvent) -> Snapshot {
+    let mut sessions: Vec<SessionDetail> = status
         .lock()
         .unwrap()
         .iter()
@@ -36,13 +56,17 @@ pub fn snapshot(status: &SharedStatus) -> Vec<SessionDetail> {
             status: if connected { "Connected" } else { "Disconnected" }.to_string(),
         })
         .collect();
-    rows.sort_by(|a, b| a.session_id.cmp(&b.session_id));
-    rows
+    sessions.sort_by(|a, b| a.session_id.cmp(&b.session_id));
+    Snapshot {
+        sessions,
+        last_event_at: *last_event.lock().unwrap(),
+    }
 }
 
 /// The same snapshot as a JSON string (used as the SSE event payload).
-pub fn snapshot_json(status: &SharedStatus) -> String {
-    serde_json::to_string(&snapshot(status)).unwrap_or_else(|_| "[]".to_string())
+pub fn snapshot_json(status: &SharedStatus, last_event: &SharedLastEvent) -> String {
+    serde_json::to_string(&snapshot(status, last_event))
+        .unwrap_or_else(|_| "{\"sessions\":[],\"lastEventAt\":null}".to_string())
 }
 
 /// The pieces of the last logged-on session, used to rebuild a `SessionId` for
@@ -59,6 +83,7 @@ pub type SharedSession = Arc<Mutex<Option<SessionKey>>>;
 pub struct FixApp {
     session_status: SharedStatus,
     logged_on: SharedSession,
+    last_event: SharedLastEvent,
     events: broadcast::Sender<String>,
 }
 
@@ -66,11 +91,13 @@ impl FixApp {
     pub fn new(
         session_status: SharedStatus,
         logged_on: SharedSession,
+        last_event: SharedLastEvent,
         events: broadcast::Sender<String>,
     ) -> Self {
         Self {
             session_status,
             logged_on,
+            last_event,
             events,
         }
     }
@@ -78,7 +105,15 @@ impl FixApp {
     /// Push the current session snapshot to any connected SSE clients. Called
     /// after every status change. Errors (no subscribers) are ignored.
     fn broadcast(&self) {
-        let _ = self.events.send(snapshot_json(&self.session_status));
+        let _ = self
+            .events
+            .send(snapshot_json(&self.session_status, &self.last_event));
+    }
+
+    /// Record the wall-clock time of a real connect/disconnect. Not called on
+    /// session creation — only logon/logout count as "session events".
+    fn mark_event(&self) {
+        *self.last_event.lock().unwrap() = Some(now_ms());
     }
 }
 
@@ -102,6 +137,7 @@ impl ApplicationCallback for FixApp {
             sender_comp_id: session.get_sender_comp_id().unwrap_or_default(),
             target_comp_id: session.get_target_comp_id().unwrap_or_default(),
         });
+        self.mark_event();
         self.broadcast();
         println!("Session {} has logged on.", session.to_repr());
     }
@@ -111,6 +147,7 @@ impl ApplicationCallback for FixApp {
             .lock()
             .unwrap()
             .insert(session.to_repr(), false);
+        self.mark_event();
         self.broadcast();
         println!("Session {} has logged out.", session.to_repr());
     }

@@ -75,9 +75,10 @@
         return `<span class="badge ${cls}">${status}</span>`;
       }
 
-      function render(sessions) {
+      function render(data) {
         // Each event carries the full session list, so just rebuild the table:
         // sessions that appear, disappear, or change status are all reflected.
+        const sessions = data.sessions;
         tableBody.innerHTML = "";
 
         if (sessions.length === 0) {
@@ -96,7 +97,11 @@
 
         connected = sessions.filter((s) => s.Status === "Connected").length;
         total = sessions.length;
-        lastChange = new Date().toLocaleTimeString();
+        // Server-owned timestamp of the last real connect/disconnect, so it
+        // doesn't move on a page refresh — only when a session logs on/out.
+        lastChange = data.lastEventAt
+          ? new Date(data.lastEventAt).toLocaleTimeString()
+          : null;
         renderMeta();
       }
 
