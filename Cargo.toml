@@ -9,7 +9,8 @@ path = "src/main.rs"
 
 [dependencies]
 quickfix = "0.2"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "time", "sync"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 axum = "0.7"
 tower-http = { version = "0.6", features = ["fs"] }
 prost = "0.13"

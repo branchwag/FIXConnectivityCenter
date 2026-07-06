@@ -12,17 +12,23 @@ use quickfix::{
     Application, ConnectionHandler, FixSocketServerKind, Initiator, LogFactory,
     MemoryMessageStoreFactory, SessionId, SessionSettings,
 };
+use tokio::sync::broadcast;
 
 use fix_app::{FixApp, SharedSession, SharedStatus};
+use web::AppState;
 
 /// Run the FIX initiator: start the engine, wait for a logon, send the CSV
-/// orders once, then keep the session alive. Runs on its own (blocking) thread.
-fn run_fix(status: SharedStatus, logged_on: SharedSession) -> Result<(), Box<dyn std::error::Error>> {
+/// orders once, then keep the engine alive for the life of the process.
+fn run_fix(
+    status: SharedStatus,
+    logged_on: SharedSession,
+    events: broadcast::Sender<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let logger = logger::FileLogger::new("./logfile.log")?;
     let log_factory = LogFactory::try_new(&logger)?;
     let settings = SessionSettings::try_from_path("sessions.cfg")?;
     let store_factory = MemoryMessageStoreFactory::new();
-    let callbacks = FixApp::new(status.clone(), logged_on.clone());
+    let callbacks = FixApp::new(status.clone(), logged_on.clone(), events);
     let app = Application::try_new(&callbacks)?;
 
     let mut initiator = Initiator::try_new(
@@ -64,14 +70,18 @@ fn run_fix(status: SharedStatus, logged_on: SharedSession) -> Result<(), Box<dyn
 async fn main() {
     let status: SharedStatus = Arc::new(Mutex::new(HashMap::new()));
     let logged_on: SharedSession = Arc::new(Mutex::new(None));
+    // Status-change events pushed by the FIX callbacks and streamed to the
+    // dashboard over SSE.
+    let (events, _) = broadcast::channel::<String>(64);
 
     let fix_status = status.clone();
     let fix_logged = logged_on.clone();
+    let fix_events = events.clone();
     std::thread::spawn(move || {
-        if let Err(e) = run_fix(fix_status, fix_logged) {
+        if let Err(e) = run_fix(fix_status, fix_logged, fix_events) {
             eprintln!("FIX engine error: {e}");
         }
     });
 
-    web::serve(status).await;
+    web::serve(AppState { status, events }).await;
 }

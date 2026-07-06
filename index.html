@@ -37,7 +37,6 @@
     </div>
 
     <script>
-      const POLL_MS = 1500;
       const tableBody = document.getElementById("sessionTableBody");
       const meta = document.getElementById("meta");
       const offline = document.getElementById("offline");
@@ -48,8 +47,8 @@
       }
 
       function render(sessions) {
-        // Rebuild the whole table each tick so sessions that appear, disappear,
-        // or change status are all reflected.
+        // Each event carries the full session list, so just rebuild the table:
+        // sessions that appear, disappear, or change status are all reflected.
         tableBody.innerHTML = "";
 
         if (sessions.length === 0) {
@@ -57,8 +56,6 @@
           row.innerHTML = `<td colspan="2" class="text-center text-muted">No sessions</td>`;
           tableBody.appendChild(row);
         } else {
-          // Stable order so rows don't jump around between polls.
-          sessions.sort((a, b) => a.SessionID.localeCompare(b.SessionID));
           for (const s of sessions) {
             const row = document.createElement("tr");
             row.innerHTML = `
@@ -73,20 +70,23 @@
         meta.textContent = `${connected}/${sessions.length} connected · updated ${now}`;
       }
 
-      async function loadSessions() {
-        try {
-          const response = await fetch("/sessions", { cache: "no-store" });
-          if (!response.ok) throw new Error("HTTP " + response.status);
-          render(await response.json());
+      // Server-Sent Events: the server pushes a fresh snapshot on every session
+      // change (and once on connect). EventSource auto-reconnects if the app
+      // restarts, so no polling loop is needed.
+      function connect() {
+        const es = new EventSource("/events");
+        es.onmessage = (e) => {
           offline.classList.add("d-none");
-        } catch (e) {
+          render(JSON.parse(e.data));
+        };
+        es.onerror = () => {
           offline.classList.remove("d-none");
-          meta.textContent = "offline";
-        }
+          meta.textContent = "reconnecting…";
+          // EventSource retries on its own; nothing else to do.
+        };
       }
 
-      loadSessions();
-      setInterval(loadSessions, POLL_MS);
+      connect();
     </script>
   </body>
 </html>

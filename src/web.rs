@@ -1,41 +1,59 @@
-//! axum web server: `/sessions` JSON endpoint + static file serving, mirroring
-//! the Go `startWebServer`.
+//! axum web server: live session dashboard.
+//!   GET /sessions  -> JSON snapshot (one-shot, handy for curl)
+//!   GET /events    -> Server-Sent Events, pushes a fresh snapshot on every change
+//!   everything else -> static files (index.html, styles.css, ...)
 
-use axum::{extract::State, routing::get, Json, Router};
-use serde::Serialize;
+use std::convert::Infallible;
+
+use axum::{
+    extract::State,
+    response::sse::{Event, KeepAlive, Sse},
+    routing::get,
+    Json, Router,
+};
+use tokio::sync::broadcast;
+use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::{Stream, StreamExt};
 use tower_http::services::ServeDir;
 
-use crate::fix_app::SharedStatus;
+use crate::fix_app::{self, SessionDetail, SharedStatus};
 
-#[derive(Serialize)]
-struct SessionDetail {
-    #[serde(rename = "SessionID")]
-    session_id: String,
-    #[serde(rename = "Status")]
-    status: String,
+#[derive(Clone)]
+pub struct AppState {
+    pub status: SharedStatus,
+    pub events: broadcast::Sender<String>,
 }
 
-async fn sessions(State(status): State<SharedStatus>) -> Json<Vec<SessionDetail>> {
-    let map = status.lock().unwrap();
-    let details = map
-        .iter()
-        .map(|(id, &connected)| SessionDetail {
-            session_id: id.clone(),
-            status: if connected { "Connected" } else { "Disconnected" }.to_string(),
-        })
-        .collect();
-    Json(details)
+async fn sessions(State(state): State<AppState>) -> Json<Vec<SessionDetail>> {
+    Json(fix_app::snapshot(&state.status))
 }
 
-pub async fn serve(status: SharedStatus) {
+async fn events(
+    State(state): State<AppState>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    // Subscribe first, then read the current snapshot, so no change can slip
+    // through between the two. Each event carries the full session list, so a
+    // dropped/lagged message is harmless — the next one is authoritative.
+    let live = BroadcastStream::new(state.events.subscribe()).filter_map(|r| r.ok());
+    let initial = tokio_stream::once(fix_app::snapshot_json(&state.status));
+
+    let stream = initial
+        .chain(live)
+        .map(|json| Ok(Event::default().data(json)));
+
+    Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+pub async fn serve(state: AppState) {
     let app = Router::new()
         .route("/sessions", get(sessions))
-        .with_state(status)
+        .route("/events", get(events))
+        .with_state(state)
         .fallback_service(ServeDir::new("."));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8081")
         .await
-        .expect("failed to bind :8080");
+        .expect("failed to bind :8081");
     println!("Server starting on http://:8081");
     axum::serve(listener, app).await.expect("web server error");
 }

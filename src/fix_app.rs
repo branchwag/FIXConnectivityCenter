@@ -7,11 +7,43 @@ use std::sync::{Arc, Mutex};
 
 use prost::Message as _;
 use quickfix::{ApplicationCallback, FieldMap, Message, MsgFromAppError, SessionId};
+use serde::Serialize;
+use tokio::sync::broadcast;
 
 use crate::proto;
 
 /// Session id string -> connected?  (shared with the web layer).
 pub type SharedStatus = Arc<Mutex<HashMap<String, bool>>>;
+
+/// One row of the dashboard, serialized for both `/sessions` and the SSE stream.
+#[derive(Serialize)]
+pub struct SessionDetail {
+    #[serde(rename = "SessionID")]
+    pub session_id: String,
+    #[serde(rename = "Status")]
+    pub status: String,
+}
+
+/// Current status of every session the engine knows about, sorted by id for a
+/// stable dashboard order.
+pub fn snapshot(status: &SharedStatus) -> Vec<SessionDetail> {
+    let mut rows: Vec<SessionDetail> = status
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(id, &connected)| SessionDetail {
+            session_id: id.clone(),
+            status: if connected { "Connected" } else { "Disconnected" }.to_string(),
+        })
+        .collect();
+    rows.sort_by(|a, b| a.session_id.cmp(&b.session_id));
+    rows
+}
+
+/// The same snapshot as a JSON string (used as the SSE event payload).
+pub fn snapshot_json(status: &SharedStatus) -> String {
+    serde_json::to_string(&snapshot(status)).unwrap_or_else(|_| "[]".to_string())
+}
 
 /// The pieces of the last logged-on session, used to rebuild a `SessionId` for
 /// sending. Stored as plain strings so it can cross the thread boundary.
@@ -27,14 +59,26 @@ pub type SharedSession = Arc<Mutex<Option<SessionKey>>>;
 pub struct FixApp {
     session_status: SharedStatus,
     logged_on: SharedSession,
+    events: broadcast::Sender<String>,
 }
 
 impl FixApp {
-    pub fn new(session_status: SharedStatus, logged_on: SharedSession) -> Self {
+    pub fn new(
+        session_status: SharedStatus,
+        logged_on: SharedSession,
+        events: broadcast::Sender<String>,
+    ) -> Self {
         Self {
             session_status,
             logged_on,
+            events,
         }
+    }
+
+    /// Push the current session snapshot to any connected SSE clients. Called
+    /// after every status change. Errors (no subscribers) are ignored.
+    fn broadcast(&self) {
+        let _ = self.events.send(snapshot_json(&self.session_status));
     }
 }
 
@@ -44,6 +88,7 @@ impl ApplicationCallback for FixApp {
             .lock()
             .unwrap()
             .insert(session.to_repr(), false);
+        self.broadcast();
         println!("Session {} created.", session.to_repr());
     }
 
@@ -57,6 +102,7 @@ impl ApplicationCallback for FixApp {
             sender_comp_id: session.get_sender_comp_id().unwrap_or_default(),
             target_comp_id: session.get_target_comp_id().unwrap_or_default(),
         });
+        self.broadcast();
         println!("Session {} has logged on.", session.to_repr());
     }
 
@@ -65,6 +111,7 @@ impl ApplicationCallback for FixApp {
             .lock()
             .unwrap()
             .insert(session.to_repr(), false);
+        self.broadcast();
         println!("Session {} has logged out.", session.to_repr());
     }
 
