@@ -1,0 +1,12 @@
+[package]
+name = "fix2json"
+version = "1.0.0"
+edition = "2021"
+
+[[bin]]
+name = "fix2json"
+path = "src/main.rs"
+
+[dependencies]
+serde = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
