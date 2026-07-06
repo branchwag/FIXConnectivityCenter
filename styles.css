@@ -2,10 +2,32 @@ body {
   background-color: #36454f;
   display: grid;
   place-items: center;
-  height: 100vh;
+  min-height: 100vh;
   margin: 0;
+  color: #e9ecef;
+}
+
+.dashboard {
+  min-width: 480px;
+  max-width: 90vw;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.meta {
+  font-size: 0.85rem;
+  color: #adb5bd;
 }
 
 .table {
-  width: auto; /* Adjust based on content */
+  width: 100%;
+}
+
+.table code {
+  color: #e9ecef;
 }

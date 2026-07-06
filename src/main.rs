@@ -35,11 +35,15 @@ fn run_fix(status: SharedStatus, logged_on: SharedSession) -> Result<(), Box<dyn
 
     initiator.start()?;
 
+    // Send the CSV orders once, on the first logon. Then keep this thread (and
+    // therefore the initiator) alive for the life of the process so the engine
+    // keeps running and the dashboard keeps reflecting live session state
+    // (logon / logout / reconnect) instead of stopping after the first logout.
     let mut sent = false;
     loop {
-        let key = logged_on.lock().unwrap().clone();
-        if let Some(key) = key {
-            if !sent {
+        if !sent {
+            let key = logged_on.lock().unwrap().clone();
+            if let Some(key) = key {
                 let sid = SessionId::try_new(
                     &key.begin_string,
                     &key.sender_comp_id,
@@ -51,19 +55,9 @@ fn run_fix(status: SharedStatus, logged_on: SharedSession) -> Result<(), Box<dyn
                 }
                 sent = true;
             }
-
-            // Keep the session alive; bail out once it drops.
-            let active = status.lock().unwrap().values().any(|&c| c);
-            if !active {
-                println!("Session is no longer active. Exiting.");
-                break;
-            }
         }
         std::thread::sleep(Duration::from_secs(1));
     }
-
-    initiator.stop()?;
-    Ok(())
 }
 
 #[tokio::main]
