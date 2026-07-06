@@ -41,20 +41,33 @@
       const meta = document.getElementById("meta");
       const offline = document.getElementById("offline");
 
-      // Dashboard state, composed into the meta line. `live` tracks the SSE
-      // connection health (updates in real time); `lastChange` is the time of
-      // the last actual session change (only moves when something changes).
-      let live = false;
+      // Connection state drives the header indicator. Starts as "connecting" so
+      // a page refresh doesn't flash "offline" before the SSE stream connects.
+      let connState = "connecting"; // "connecting" | "live" | "offline"
+      let offlineTimer = null;
       let connected = 0;
       let total = 0;
       let lastChange = null;
 
       function renderMeta() {
-        const dot = live
-          ? '<span class="text-success">●</span> monitoring live'
-          : '<span class="text-danger">●</span> offline';
+        let dot;
+        if (connState === "live") {
+          dot = '<span class="text-success">●</span> monitoring live';
+        } else if (connState === "offline") {
+          dot = '<span class="text-danger">●</span> offline';
+        } else {
+          dot = '<span class="text-secondary">●</span> connecting…';
+        }
         const changed = lastChange ? ` · last session event ${lastChange}` : "";
         meta.innerHTML = `${dot} · ${connected}/${total} connected${changed}`;
+      }
+
+      // A successful (re)connect: cancel any pending offline banner and hide it.
+      function markLive() {
+        connState = "live";
+        clearTimeout(offlineTimer);
+        offlineTimer = null;
+        offline.classList.add("d-none");
       }
 
       function badge(status) {
@@ -93,20 +106,23 @@
       function connect() {
         const es = new EventSource("/events");
         es.onopen = () => {
-          live = true;
-          offline.classList.add("d-none");
+          markLive();
           renderMeta();
         };
         es.onmessage = (e) => {
-          live = true;
-          offline.classList.add("d-none");
+          markLive();
           render(JSON.parse(e.data));
         };
         es.onerror = () => {
-          live = false;
-          offline.classList.remove("d-none");
-          renderMeta();
-          // EventSource retries on its own; nothing else to do.
+          // Don't flash "offline" on a transient blip (a refresh or a quick
+          // reconnect). Only surface it if we stay down past a short grace
+          // period; a successful (re)connect cancels this via markLive().
+          if (connState === "offline" || offlineTimer) return;
+          offlineTimer = setTimeout(() => {
+            connState = "offline";
+            offline.classList.remove("d-none");
+            renderMeta();
+          }, 1500);
         };
       }
 
