@@ -84,6 +84,28 @@ fn parse_sessions(cfg_path: &str) -> std::io::Result<Vec<HashMap<String, String>
     Ok(sessions)
 }
 
+/// session-id-repr ("FIX.4.2:FIXDEV->TEST") -> `ConnectionType`, for the
+/// dashboard's per-session direction (Connecting vs Listening).
+pub(crate) fn session_directions(cfg_path: &str) -> HashMap<String, String> {
+    parse_sessions(cfg_path)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|s| {
+            let key = format!(
+                "{}:{}->{}",
+                s.get("BeginString")?,
+                s.get("SenderCompID")?,
+                s.get("TargetCompID")?
+            );
+            let dir = s
+                .get("ConnectionType")
+                .cloned()
+                .unwrap_or_else(|| "initiator".to_string());
+            Some((key, dir))
+        })
+        .collect()
+}
+
 /// Build acceptor settings that mirror each configured initiator session:
 /// swap comp ids, `ConnectionType=acceptor`, and listen on the port the
 /// initiator dials.

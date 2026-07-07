@@ -15,15 +15,18 @@ use quickfix::{
 };
 use tokio::sync::broadcast;
 
-use fix_app::{FixApp, SharedLastEvent, SharedSession, SharedStatus};
+use fix_app::{Directions, FixApp, SharedLastEvent, SharedSession, SharedStarted, SharedStatus};
 use web::AppState;
 
 /// Run the FIX initiator: start the engine, wait for a logon, send the CSV
 /// orders once, then keep the engine alive for the life of the process.
+#[allow(clippy::too_many_arguments)]
 fn run_fix(
     status: SharedStatus,
     logged_on: SharedSession,
     last_event: SharedLastEvent,
+    started: SharedStarted,
+    directions: Directions,
     events: broadcast::Sender<String>,
     counterparty: counterparty::CounterpartyControl,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -31,7 +34,15 @@ fn run_fix(
     let log_factory = LogFactory::try_new(&logger)?;
     let settings = SessionSettings::try_from_path("sessions.cfg")?;
     let store_factory = MemoryMessageStoreFactory::new();
-    let callbacks = FixApp::new(status.clone(), logged_on.clone(), last_event, events, counterparty);
+    let callbacks = FixApp::new(
+        status.clone(),
+        logged_on.clone(),
+        last_event,
+        started,
+        directions,
+        events,
+        counterparty,
+    );
     let app = Application::try_new(&callbacks)?;
 
     let mut initiator = Initiator::try_new(
@@ -74,6 +85,10 @@ async fn main() {
     let status: SharedStatus = Arc::new(Mutex::new(HashMap::new()));
     let logged_on: SharedSession = Arc::new(Mutex::new(None));
     let last_event: SharedLastEvent = Arc::new(Mutex::new(None));
+    // Per-session enabled state (absent = enabled) driven by the Start/Disconnect
+    // buttons, and per-session direction read once from the config.
+    let started: SharedStarted = Arc::new(Mutex::new(HashMap::new()));
+    let directions: Directions = Arc::new(counterparty::session_directions("sessions.cfg"));
     // Status-change events pushed by the FIX callbacks and streamed to the
     // dashboard over SSE.
     let (events, _) = broadcast::channel::<String>(64);
@@ -84,11 +99,20 @@ async fn main() {
     let fix_status = status.clone();
     let fix_logged = logged_on.clone();
     let fix_last_event = last_event.clone();
+    let fix_started = started.clone();
+    let fix_directions = directions.clone();
     let fix_events = events.clone();
     let fix_counterparty = counterparty.clone();
     std::thread::spawn(move || {
-        if let Err(e) = run_fix(fix_status, fix_logged, fix_last_event, fix_events, fix_counterparty)
-        {
+        if let Err(e) = run_fix(
+            fix_status,
+            fix_logged,
+            fix_last_event,
+            fix_started,
+            fix_directions,
+            fix_events,
+            fix_counterparty,
+        ) {
             eprintln!("FIX engine error: {e}");
         }
     });
@@ -96,6 +120,8 @@ async fn main() {
     web::serve(AppState {
         status,
         last_event,
+        started,
+        directions,
         events,
         counterparty,
     })

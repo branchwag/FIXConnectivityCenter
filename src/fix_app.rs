@@ -21,6 +21,21 @@ pub type SharedStatus = Arc<Mutex<HashMap<String, bool>>>;
 /// page refresh — only when a session actually logs on or out.
 pub type SharedLastEvent = Arc<Mutex<Option<u64>>>;
 
+/// Session id string -> enabled?  Absent means enabled (sessions auto-connect by
+/// default). Set false by a manual Disconnect, true by a manual Start.
+pub type SharedStarted = Arc<Mutex<HashMap<String, bool>>>;
+
+/// Session id string -> `ConnectionType` ("initiator" | "acceptor"), read once
+/// from `sessions.cfg` at startup.
+pub type Directions = Arc<HashMap<String, String>>;
+
+/// Rebuild a `SessionId` from its string form ("FIX.4.2:FIXDEV->TEST").
+pub fn parse_session_id(repr: &str) -> Option<SessionId> {
+    let (begin, rest) = repr.split_once(':')?;
+    let (sender, target) = rest.split_once("->")?;
+    SessionId::try_new(begin, sender, target, "").ok()
+}
+
 fn now_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -35,6 +50,11 @@ pub struct SessionDetail {
     pub session_id: String,
     #[serde(rename = "Status")]
     pub status: String,
+    /// "initiator" | "acceptor" (from config) — drives Connecting vs Listening.
+    pub direction: String,
+    /// Whether the session is enabled (auto-connecting / logged on) vs manually
+    /// disconnected.
+    pub started: bool,
 }
 
 /// Full dashboard payload for `/sessions` and the SSE stream: every session the
@@ -53,16 +73,26 @@ pub fn snapshot(
     status: &SharedStatus,
     last_event: &SharedLastEvent,
     counterparty_running: bool,
+    started: &SharedStarted,
+    directions: &HashMap<String, String>,
 ) -> Snapshot {
-    let mut sessions: Vec<SessionDetail> = status
-        .lock()
-        .unwrap()
+    // Lock order: started before status (the control endpoints only take started).
+    let started_map = started.lock().unwrap();
+    let status_map = status.lock().unwrap();
+    let mut sessions: Vec<SessionDetail> = status_map
         .iter()
         .map(|(id, &connected)| SessionDetail {
             session_id: id.clone(),
             status: if connected { "Connected" } else { "Disconnected" }.to_string(),
+            direction: directions
+                .get(id)
+                .cloned()
+                .unwrap_or_else(|| "initiator".to_string()),
+            started: started_map.get(id).copied().unwrap_or(true),
         })
         .collect();
+    drop(status_map);
+    drop(started_map);
     sessions.sort_by(|a, b| a.session_id.cmp(&b.session_id));
     Snapshot {
         sessions,
@@ -76,8 +106,17 @@ pub fn snapshot_json(
     status: &SharedStatus,
     last_event: &SharedLastEvent,
     counterparty_running: bool,
+    started: &SharedStarted,
+    directions: &HashMap<String, String>,
 ) -> String {
-    serde_json::to_string(&snapshot(status, last_event, counterparty_running)).unwrap_or_else(
+    serde_json::to_string(&snapshot(
+        status,
+        last_event,
+        counterparty_running,
+        started,
+        directions,
+    ))
+    .unwrap_or_else(
         |_| "{\"sessions\":[],\"lastEventAt\":null,\"counterpartyRunning\":false}".to_string(),
     )
 }
@@ -97,15 +136,20 @@ pub struct FixApp {
     session_status: SharedStatus,
     logged_on: SharedSession,
     last_event: SharedLastEvent,
+    started: SharedStarted,
+    directions: Directions,
     events: broadcast::Sender<String>,
     counterparty: CounterpartyControl,
 }
 
 impl FixApp {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         session_status: SharedStatus,
         logged_on: SharedSession,
         last_event: SharedLastEvent,
+        started: SharedStarted,
+        directions: Directions,
         events: broadcast::Sender<String>,
         counterparty: CounterpartyControl,
     ) -> Self {
@@ -113,6 +157,8 @@ impl FixApp {
             session_status,
             logged_on,
             last_event,
+            started,
+            directions,
             events,
             counterparty,
         }
@@ -125,6 +171,8 @@ impl FixApp {
             &self.session_status,
             &self.last_event,
             self.counterparty.is_running(),
+            &self.started,
+            &self.directions,
         ));
     }
 

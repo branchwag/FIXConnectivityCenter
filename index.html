@@ -27,7 +27,8 @@
         <thead>
           <tr>
             <th>Session</th>
-            <th class="text-end">Status</th>
+            <th>Status</th>
+            <th class="text-end">Action</th>
           </tr>
         </thead>
         <tbody id="sessionTableBody">
@@ -96,6 +97,23 @@
         return `<span class="badge ${cls}">${status}</span>`;
       }
 
+      // The per-session control button, derived from the session's live state:
+      //   Connected           -> red "Disconnect" (click disables the session)
+      //   enabled, not linked -> "Connecting"/"Listening", disabled (wait)
+      //   disabled            -> green "Start" (click enables the session)
+      function sessionButton(s) {
+        // data-id is URL-encoded, which is also safe inside an HTML attribute.
+        const id = encodeURIComponent(s.SessionID);
+        if (s.Status === "Connected") {
+          return `<button class="btn btn-sm btn-outline-danger" data-id="${id}" data-action="disconnect">Disconnect</button>`;
+        }
+        if (s.started !== false) {
+          const label = s.direction === "acceptor" ? "Listening" : "Connecting";
+          return `<button class="btn btn-sm btn-outline-secondary" disabled>${label}</button>`;
+        }
+        return `<button class="btn btn-sm btn-outline-success" data-id="${id}" data-action="start">Start</button>`;
+      }
+
       function render(data) {
         // Each event carries the full session list, so just rebuild the table:
         // sessions that appear, disappear, or change status are all reflected.
@@ -104,14 +122,15 @@
 
         if (sessions.length === 0) {
           const row = document.createElement("tr");
-          row.innerHTML = `<td colspan="2" class="text-center text-muted">No sessions</td>`;
+          row.innerHTML = `<td colspan="3" class="text-center text-muted">No sessions</td>`;
           tableBody.appendChild(row);
         } else {
           for (const s of sessions) {
             const row = document.createElement("tr");
             row.innerHTML = `
               <td><code>${s.SessionID}</code></td>
-              <td class="text-end">${badge(s.Status)}</td>`;
+              <td>${badge(s.Status)}</td>
+              <td class="text-end">${sessionButton(s)}</td>`;
             tableBody.appendChild(row);
           }
         }
@@ -161,6 +180,22 @@
 
       renderMeta();
       connect();
+
+      // Per-session Start / Disconnect. Rows are rebuilt on every SSE frame, so
+      // use one delegated listener; the "Connecting"/"Listening" button carries
+      // no data-action, so it's ignored (non-interactive). The row's new state
+      // arrives via the SSE stream right after the POST.
+      tableBody.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-action]");
+        if (!btn) return;
+        btn.disabled = true;
+        fetch(`/sessions/${btn.dataset.action}?id=${btn.dataset.id}`, {
+          method: "POST",
+          cache: "no-store",
+        }).catch(() => {
+          btn.disabled = false;
+        });
+      });
 
       // --- Tools: test counterparty (FIX acceptor) control ---
       const cpBtn = document.getElementById("cpBtn");

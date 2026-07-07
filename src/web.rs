@@ -1,16 +1,21 @@
 //! axum web server: live session dashboard.
-//!   GET /sessions  -> JSON snapshot (one-shot, handy for curl)
-//!   GET /events    -> Server-Sent Events, pushes a fresh snapshot on every change
-//!   everything else -> static files (index.html, styles.css, ...)
+//!   GET  /sessions            -> JSON snapshot (one-shot, handy for curl)
+//!   GET  /events              -> Server-Sent Events, pushes a snapshot on every change
+//!   POST /sessions/start      -> enable (logon) a session,  ?id=<session-id>
+//!   POST /sessions/disconnect -> disable (logout) a session, ?id=<session-id>
+//!   /tools/counterparty*      -> in-app test counterparty control
+//!   everything else           -> static files (index.html, styles.css, ...)
 
 use std::convert::Infallible;
 
 use axum::{
-    extract::State,
+    extract::{Query, State},
     response::sse::{Event, KeepAlive, Sse},
     routing::{get, post},
     Json, Router,
 };
+use quickfix::Session;
+use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
@@ -18,12 +23,14 @@ use tokio_stream::{Stream, StreamExt};
 use tower_http::services::ServeDir;
 
 use crate::counterparty::CounterpartyControl;
-use crate::fix_app::{self, SharedLastEvent, SharedStatus, Snapshot};
+use crate::fix_app::{self, Directions, SharedLastEvent, SharedStarted, SharedStatus, Snapshot};
 
 #[derive(Clone)]
 pub struct AppState {
     pub status: SharedStatus,
     pub last_event: SharedLastEvent,
+    pub started: SharedStarted,
+    pub directions: Directions,
     pub events: broadcast::Sender<String>,
     pub counterparty: CounterpartyControl,
 }
@@ -33,16 +40,20 @@ async fn sessions(State(state): State<AppState>) -> Json<Snapshot> {
         &state.status,
         &state.last_event,
         state.counterparty.is_running(),
+        &state.started,
+        &state.directions,
     ))
 }
 
 /// Push the current snapshot to SSE clients (used when a change originates
-/// outside the FIX callbacks, e.g. the counterparty being started/stopped).
+/// outside the FIX callbacks, e.g. the counterparty or a session being toggled).
 fn broadcast_snapshot(state: &AppState) {
     let _ = state.events.send(fix_app::snapshot_json(
         &state.status,
         &state.last_event,
         state.counterparty.is_running(),
+        &state.started,
+        &state.directions,
     ));
 }
 
@@ -57,6 +68,8 @@ async fn events(
         &state.status,
         &state.last_event,
         state.counterparty.is_running(),
+        &state.started,
+        &state.directions,
     ));
 
     let stream = initial
@@ -64,6 +77,52 @@ async fn events(
         .map(|json| Ok(Event::default().data(json)));
 
     Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+// --- Per-session control ---
+
+#[derive(Deserialize)]
+struct SessionQuery {
+    id: String,
+}
+
+/// Enable (`logon`) or disable (`logout`) a single session by its id string.
+fn set_session_enabled(state: &AppState, id: &str, enabled: bool) {
+    if let Some(sid) = fix_app::parse_session_id(id) {
+        // SAFETY: the initiator that owns this session runs for the life of the
+        // process, so the looked-up session outlives this call.
+        match unsafe { Session::lookup(&sid) } {
+            Ok(mut session) => {
+                let result = if enabled {
+                    session.logon()
+                } else {
+                    session.logout()
+                };
+                if let Err(e) = result {
+                    eprintln!("Session {id} {}: {e}", if enabled { "logon" } else { "logout" });
+                }
+            }
+            Err(e) => eprintln!("Session {id} not found: {e}"),
+        }
+    }
+    state.started.lock().unwrap().insert(id.to_string(), enabled);
+    broadcast_snapshot(state);
+}
+
+async fn session_start(
+    State(state): State<AppState>,
+    Query(q): Query<SessionQuery>,
+) -> Json<serde_json::Value> {
+    set_session_enabled(&state, &q.id, true);
+    Json(json!({ "started": true }))
+}
+
+async fn session_disconnect(
+    State(state): State<AppState>,
+    Query(q): Query<SessionQuery>,
+) -> Json<serde_json::Value> {
+    set_session_enabled(&state, &q.id, false);
+    Json(json!({ "started": false }))
 }
 
 // --- Tools: in-app test counterparty (FIX acceptor) ---
@@ -88,6 +147,8 @@ pub async fn serve(state: AppState) {
     let app = Router::new()
         .route("/sessions", get(sessions))
         .route("/events", get(events))
+        .route("/sessions/start", post(session_start))
+        .route("/sessions/disconnect", post(session_disconnect))
         .route("/tools/counterparty", get(counterparty_status))
         .route("/tools/counterparty/start", post(counterparty_start))
         .route("/tools/counterparty/stop", post(counterparty_stop))
