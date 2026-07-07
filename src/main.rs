@@ -1,3 +1,4 @@
+mod counterparty;
 mod csv_send;
 mod fix_app;
 mod logger;
@@ -90,6 +91,7 @@ async fn main() {
         status,
         last_event,
         events,
+        counterparty: counterparty::CounterpartyControl::default(),
     })
     .await;
 }

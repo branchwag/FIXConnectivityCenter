@@ -34,6 +34,27 @@
           <!-- Dynamically updated -->
         </tbody>
       </table>
+
+      <section class="tools">
+        <h2 class="h6 tools-title">Tools</h2>
+        <div class="tool-card">
+          <div>
+            <div class="tool-name">Test Counterparty</div>
+            <div class="tool-desc">
+              An in-app FIX acceptor that mirrors your sessions so they have
+              something to connect to. Accepts logons and auto-acks orders.
+            </div>
+          </div>
+          <div class="tool-controls">
+            <span id="cpState" class="cp-state"
+              ><span class="text-secondary">●</span> stopped</span
+            >
+            <button id="cpBtn" class="btn btn-sm btn-outline-light" disabled>
+              …
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
 
     <script>
@@ -133,6 +154,41 @@
 
       renderMeta();
       connect();
+
+      // --- Tools: test counterparty (FIX acceptor) control ---
+      const cpBtn = document.getElementById("cpBtn");
+      const cpState = document.getElementById("cpState");
+      let cpRunning = false;
+
+      function renderCp() {
+        cpState.innerHTML = cpRunning
+          ? '<span class="text-success">●</span> running'
+          : '<span class="text-secondary">●</span> stopped';
+        cpBtn.textContent = cpRunning ? "Stop" : "Start";
+        cpBtn.className =
+          "btn btn-sm " + (cpRunning ? "btn-outline-danger" : "btn-outline-success");
+        cpBtn.disabled = false;
+      }
+
+      async function cpFetch(path, method) {
+        const r = await fetch(path, { method, cache: "no-store" });
+        const data = await r.json();
+        cpRunning = !!data.running;
+        renderCp();
+      }
+
+      cpBtn.addEventListener("click", () => {
+        cpBtn.disabled = true;
+        cpFetch(
+          cpRunning ? "/tools/counterparty/stop" : "/tools/counterparty/start",
+          "POST",
+        ).catch(() => {
+          cpBtn.disabled = false;
+        });
+      });
+
+      // Initial state (the sessions themselves flip via the SSE stream).
+      cpFetch("/tools/counterparty", "GET").catch(() => {});
     </script>
   </body>
 </html>

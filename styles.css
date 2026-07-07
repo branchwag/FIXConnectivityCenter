@@ -32,3 +32,49 @@ body {
 .table code {
   color: #e9ecef;
 }
+
+.tools {
+  margin-top: 1.5rem;
+}
+
+.tools-title {
+  color: #adb5bd;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.tool-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  background-color: #2b3841;
+  border: 1px solid #46555f;
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+}
+
+.tool-name {
+  font-weight: 600;
+}
+
+.tool-desc {
+  font-size: 0.8rem;
+  color: #adb5bd;
+  margin-top: 0.15rem;
+}
+
+.tool-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.cp-state {
+  font-size: 0.85rem;
+  color: #adb5bd;
+  white-space: nowrap;
+}

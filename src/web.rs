@@ -8,14 +8,16 @@ use std::convert::Infallible;
 use axum::{
     extract::State,
     response::sse::{Event, KeepAlive, Sse},
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
+use serde_json::json;
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::services::ServeDir;
 
+use crate::counterparty::CounterpartyControl;
 use crate::fix_app::{self, SharedLastEvent, SharedStatus, Snapshot};
 
 #[derive(Clone)]
@@ -23,6 +25,7 @@ pub struct AppState {
     pub status: SharedStatus,
     pub last_event: SharedLastEvent,
     pub events: broadcast::Sender<String>,
+    pub counterparty: CounterpartyControl,
 }
 
 async fn sessions(State(state): State<AppState>) -> Json<Snapshot> {
@@ -45,10 +48,27 @@ async fn events(
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
+// --- Tools: in-app test counterparty (FIX acceptor) ---
+
+async fn counterparty_status(State(state): State<AppState>) -> Json<serde_json::Value> {
+    Json(json!({ "running": state.counterparty.is_running() }))
+}
+
+async fn counterparty_start(State(state): State<AppState>) -> Json<serde_json::Value> {
+    Json(json!({ "running": state.counterparty.start() }))
+}
+
+async fn counterparty_stop(State(state): State<AppState>) -> Json<serde_json::Value> {
+    Json(json!({ "running": state.counterparty.stop() }))
+}
+
 pub async fn serve(state: AppState) {
     let app = Router::new()
         .route("/sessions", get(sessions))
         .route("/events", get(events))
+        .route("/tools/counterparty", get(counterparty_status))
+        .route("/tools/counterparty/start", post(counterparty_start))
+        .route("/tools/counterparty/stop", post(counterparty_stop))
         .with_state(state)
         .fallback_service(ServeDir::new("."));
 
