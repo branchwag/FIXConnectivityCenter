@@ -15,6 +15,11 @@ use std::sync::Mutex;
 
 use quickfix::{LogCallback, SessionId};
 
+/// Directory all logs are written into (relative to the process cwd). Shared by
+/// the writer (`FileLogger`) and readers (the web log-tail endpoint) so the two
+/// can't drift.
+pub const LOG_DIR: &str = "logs";
+
 /// Roll a log file once a write would push it past this many bytes.
 const DEFAULT_MAX_BYTES: u64 = 5 * 1024 * 1024; // 5 MiB
 /// Number of rotated archives to keep per log (`<name>.log.1` .. `.<N>`).
@@ -120,7 +125,25 @@ fn session_log_name(s: &SessionId) -> String {
     let begin = s.get_begin_string().unwrap_or_default();
     let sender = s.get_sender_comp_id().unwrap_or_default();
     let target = s.get_target_comp_id().unwrap_or_default();
+    log_file_stem(&begin, &sender, &target)
+}
+
+/// Filename stem for a session's log from its parts, e.g. "FIX.4.2-FIXDEV-TEST".
+pub fn log_file_stem(begin: &str, sender: &str, target: &str) -> String {
     sanitize(&format!("{begin}-{sender}-{target}"))
+}
+
+/// Resolve a session id string ("FIX.4.2:FIXDEV->TEST") to its log file path
+/// inside [`LOG_DIR`]. Returns `None` if the id isn't in the expected form.
+///
+/// The stem is run through [`sanitize`], which replaces path separators (and
+/// anything else non-alphanumeric besides `.`/`-`/`_`), so a hostile `id` cannot
+/// escape `LOG_DIR` — the result is always a single file directly under it.
+pub fn session_log_path(repr: &str) -> Option<PathBuf> {
+    let (begin, rest) = repr.split_once(':')?;
+    let (sender, target) = rest.split_once("->")?;
+    let stem = log_file_stem(begin, sender, target);
+    Some(PathBuf::from(LOG_DIR).join(format!("{stem}.log")))
 }
 
 /// Keep filenames filesystem-safe (session ids can contain `:`, `/`, `->`).

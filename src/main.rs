@@ -30,7 +30,7 @@ fn run_fix(
     events: broadcast::Sender<String>,
     counterparty: counterparty::CounterpartyControl,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let logger = logger::FileLogger::new("./logs")?;
+    let logger = logger::FileLogger::new(logger::LOG_DIR)?;
     let log_factory = LogFactory::try_new(&logger)?;
     let settings = SessionSettings::try_from_path("sessions.cfg")?;
     let store_factory = MemoryMessageStoreFactory::new();

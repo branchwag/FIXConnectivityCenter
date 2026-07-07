@@ -146,7 +146,7 @@ fn build_acceptor_settings(cfg_path: &str) -> Result<SessionSettings, Box<dyn st
 fn run_acceptor(stop: &AtomicBool) -> Result<(), Box<dyn std::error::Error>> {
     let settings = build_acceptor_settings(CFG_PATH)?;
     let store = MemoryMessageStoreFactory::new();
-    let logger = FileLogger::new("./logs")?;
+    let logger = FileLogger::new(crate::logger::LOG_DIR)?;
     let log_factory = LogFactory::try_new(&logger)?;
     let callbacks = TestCounterparty;
     let app = Application::try_new(&callbacks)?;

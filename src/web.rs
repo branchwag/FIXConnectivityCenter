@@ -3,10 +3,12 @@
 //!   GET  /events              -> Server-Sent Events, pushes a snapshot on every change
 //!   POST /sessions/start      -> enable (logon) a session,  ?id=<session-id>
 //!   POST /sessions/disconnect -> disable (logout) a session, ?id=<session-id>
+//!   GET  /sessions/log        -> tail a session's log file,  ?id=<session-id>&offset=<u64>
 //!   /tools/counterparty*      -> in-app test counterparty control
 //!   everything else           -> static files (index.html, styles.css, ...)
 
 use std::convert::Infallible;
+use std::io::{Read, Seek, SeekFrom};
 
 use axum::{
     extract::{Query, State},
@@ -24,6 +26,7 @@ use tower_http::services::ServeDir;
 
 use crate::counterparty::CounterpartyControl;
 use crate::fix_app::{self, Directions, SharedLastEvent, SharedStarted, SharedStatus, Snapshot};
+use crate::logger;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -125,6 +128,72 @@ async fn session_disconnect(
     Json(json!({ "started": false }))
 }
 
+// --- Per-session log tail ---
+
+/// First-view window (bytes read from the end when the client has no offset).
+const TAIL_BYTES: u64 = 64 * 1024;
+/// Cap on how much a single incremental poll returns (bytes).
+const MAX_CHUNK: u64 = 256 * 1024;
+
+#[derive(Deserialize)]
+struct LogQuery {
+    id: String,
+    offset: Option<u64>,
+}
+
+/// Read a slice of a session's log for the tail view.
+///
+/// Returns `(text, new_offset, reset)`:
+/// - `offset == None` (first view): the last [`TAIL_BYTES`], trimmed to whole lines.
+/// - `offset == Some(o)` and `o <= size`: bytes since `o` (capped at [`MAX_CHUNK`]).
+/// - `offset == Some(o)` and `o > size`: the file rotated/shrank — fresh tail, `reset = true`.
+///
+/// Missing or unreadable files yield `("", 0, false)`. The path comes from
+/// [`logger::session_log_path`], which confines it to the log dir.
+fn read_log_tail(id: &str, offset: Option<u64>) -> (String, u64, bool) {
+    let empty = (String::new(), 0, false);
+    let Some(path) = logger::session_log_path(id) else {
+        return empty;
+    };
+    let Ok(mut file) = std::fs::File::open(&path) else {
+        return empty;
+    };
+    let Ok(size) = file.metadata().map(|m| m.len()) else {
+        return empty;
+    };
+
+    let (start, reset, trim_partial) = match offset {
+        None => (size.saturating_sub(TAIL_BYTES), false, true),
+        Some(o) if o > size => (size.saturating_sub(TAIL_BYTES), true, true),
+        Some(o) => (o.max(size.saturating_sub(MAX_CHUNK)), false, false),
+    };
+
+    if start >= size {
+        return (String::new(), size, reset);
+    }
+    if file.seek(SeekFrom::Start(start)).is_err() {
+        return empty;
+    }
+    let mut buf = Vec::with_capacity((size - start) as usize);
+    if file.take(size - start).read_to_end(&mut buf).is_err() {
+        return empty;
+    }
+
+    let mut text = String::from_utf8_lossy(&buf).into_owned();
+    // When starting mid-file, drop the leading partial line.
+    if trim_partial && start > 0 {
+        if let Some(nl) = text.find('\n') {
+            text.drain(..=nl);
+        }
+    }
+    (text, size, reset)
+}
+
+async fn session_log(Query(q): Query<LogQuery>) -> Json<serde_json::Value> {
+    let (data, offset, reset) = read_log_tail(&q.id, q.offset);
+    Json(json!({ "data": data, "offset": offset, "reset": reset }))
+}
+
 // --- Tools: in-app test counterparty (FIX acceptor) ---
 
 async fn counterparty_status(State(state): State<AppState>) -> Json<serde_json::Value> {
@@ -149,6 +218,7 @@ pub async fn serve(state: AppState) {
         .route("/events", get(events))
         .route("/sessions/start", post(session_start))
         .route("/sessions/disconnect", post(session_disconnect))
+        .route("/sessions/log", get(session_log))
         .route("/tools/counterparty", get(counterparty_status))
         .route("/tools/counterparty/start", post(counterparty_start))
         .route("/tools/counterparty/stop", post(counterparty_stop))

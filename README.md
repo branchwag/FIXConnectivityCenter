@@ -1,14 +1,8 @@
 # FIX Connectivity Center
 
-A small app built with Rust to manage FIX sessions. It runs a FIX 4.2 initiator
-(via the [`quickfix`](https://crates.io/crates/quickfix) crate — bindings to the
+An app built with Rust to manage FIX sessions. It runs a FIX engine (via the [`quickfix`](https://crates.io/crates/quickfix) crate — bindings to the
 QuickFIX C++ engine), serves a status dashboard, sends orders from `messages.csv`
 on logon, and streams inbound app messages as protobuf over TCP to `localhost:9090`.
-
-FancyLog idea from https://github.com/quickfixgo/traderui
-
-Shoutout to MiniFix for being a great tool to connect a test counterparty session to this app.
-https://elato.se/minifix/index.html
 
 ## Build & run
 
