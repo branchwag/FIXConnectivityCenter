@@ -29,7 +29,21 @@ pub struct AppState {
 }
 
 async fn sessions(State(state): State<AppState>) -> Json<Snapshot> {
-    Json(fix_app::snapshot(&state.status, &state.last_event))
+    Json(fix_app::snapshot(
+        &state.status,
+        &state.last_event,
+        state.counterparty.is_running(),
+    ))
+}
+
+/// Push the current snapshot to SSE clients (used when a change originates
+/// outside the FIX callbacks, e.g. the counterparty being started/stopped).
+fn broadcast_snapshot(state: &AppState) {
+    let _ = state.events.send(fix_app::snapshot_json(
+        &state.status,
+        &state.last_event,
+        state.counterparty.is_running(),
+    ));
 }
 
 async fn events(
@@ -39,7 +53,11 @@ async fn events(
     // through between the two. Each event carries the full session list, so a
     // dropped/lagged message is harmless — the next one is authoritative.
     let live = BroadcastStream::new(state.events.subscribe()).filter_map(|r| r.ok());
-    let initial = tokio_stream::once(fix_app::snapshot_json(&state.status, &state.last_event));
+    let initial = tokio_stream::once(fix_app::snapshot_json(
+        &state.status,
+        &state.last_event,
+        state.counterparty.is_running(),
+    ));
 
     let stream = initial
         .chain(live)
@@ -55,11 +73,15 @@ async fn counterparty_status(State(state): State<AppState>) -> Json<serde_json::
 }
 
 async fn counterparty_start(State(state): State<AppState>) -> Json<serde_json::Value> {
-    Json(json!({ "running": state.counterparty.start() }))
+    let running = state.counterparty.start();
+    broadcast_snapshot(&state); // push the new running state to all SSE clients
+    Json(json!({ "running": running }))
 }
 
 async fn counterparty_stop(State(state): State<AppState>) -> Json<serde_json::Value> {
-    Json(json!({ "running": state.counterparty.stop() }))
+    let running = state.counterparty.stop();
+    broadcast_snapshot(&state);
+    Json(json!({ "running": running }))
 }
 
 pub async fn serve(state: AppState) {

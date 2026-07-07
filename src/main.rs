@@ -25,12 +25,13 @@ fn run_fix(
     logged_on: SharedSession,
     last_event: SharedLastEvent,
     events: broadcast::Sender<String>,
+    counterparty: counterparty::CounterpartyControl,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let logger = logger::FileLogger::new("./logs")?;
     let log_factory = LogFactory::try_new(&logger)?;
     let settings = SessionSettings::try_from_path("sessions.cfg")?;
     let store_factory = MemoryMessageStoreFactory::new();
-    let callbacks = FixApp::new(status.clone(), logged_on.clone(), last_event, events);
+    let callbacks = FixApp::new(status.clone(), logged_on.clone(), last_event, events, counterparty);
     let app = Application::try_new(&callbacks)?;
 
     let mut initiator = Initiator::try_new(
@@ -76,13 +77,18 @@ async fn main() {
     // Status-change events pushed by the FIX callbacks and streamed to the
     // dashboard over SSE.
     let (events, _) = broadcast::channel::<String>(64);
+    // Shared between the FIX callbacks (so its running state rides the SSE
+    // stream) and the web layer (which starts/stops it).
+    let counterparty = counterparty::CounterpartyControl::default();
 
     let fix_status = status.clone();
     let fix_logged = logged_on.clone();
     let fix_last_event = last_event.clone();
     let fix_events = events.clone();
+    let fix_counterparty = counterparty.clone();
     std::thread::spawn(move || {
-        if let Err(e) = run_fix(fix_status, fix_logged, fix_last_event, fix_events) {
+        if let Err(e) = run_fix(fix_status, fix_logged, fix_last_event, fix_events, fix_counterparty)
+        {
             eprintln!("FIX engine error: {e}");
         }
     });
@@ -91,7 +97,7 @@ async fn main() {
         status,
         last_event,
         events,
-        counterparty: counterparty::CounterpartyControl::default(),
+        counterparty,
     })
     .await;
 }

@@ -39,7 +39,7 @@
         <h2 class="h6 tools-title">Tools</h2>
         <div class="tool-card">
           <div>
-            <div class="tool-name">Test Counterparty</div>
+            <div class="tool-name">Test Counterparty Engine</div>
             <div class="tool-desc">
               An in-app FIX acceptor that mirrors your sessions so they have
               something to connect to. Accepts logons and auto-acks orders.
@@ -124,6 +124,13 @@
           ? new Date(data.lastEventAt).toLocaleTimeString()
           : null;
         renderMeta();
+
+        // Counterparty running state rides the same SSE stream, so the Tools
+        // indicator updates in real time (including from other tabs).
+        if (typeof data.counterpartyRunning === "boolean") {
+          cpRunning = data.counterpartyRunning;
+          renderCp();
+        }
       }
 
       // Server-Sent Events: the server pushes a fresh snapshot on every session
@@ -166,7 +173,8 @@
           : '<span class="text-secondary">●</span> stopped';
         cpBtn.textContent = cpRunning ? "Stop" : "Start";
         cpBtn.className =
-          "btn btn-sm " + (cpRunning ? "btn-outline-danger" : "btn-outline-success");
+          "btn btn-sm " +
+          (cpRunning ? "btn-outline-danger" : "btn-outline-success");
         cpBtn.disabled = false;
       }
 

@@ -10,6 +10,7 @@ use quickfix::{ApplicationCallback, FieldMap, Message, MsgFromAppError, SessionI
 use serde::Serialize;
 use tokio::sync::broadcast;
 
+use crate::counterparty::CounterpartyControl;
 use crate::proto;
 
 /// Session id string -> connected?  (shared with the web layer).
@@ -37,16 +38,22 @@ pub struct SessionDetail {
 }
 
 /// Full dashboard payload for `/sessions` and the SSE stream: every session the
-/// engine knows about (sorted by id for a stable order), plus the time of the
-/// last actual connect/disconnect.
+/// engine knows about (sorted by id for a stable order), the time of the last
+/// actual connect/disconnect, and whether the test counterparty is running.
 #[derive(Serialize)]
 pub struct Snapshot {
     pub sessions: Vec<SessionDetail>,
     #[serde(rename = "lastEventAt")]
     pub last_event_at: Option<u64>,
+    #[serde(rename = "counterpartyRunning")]
+    pub counterparty_running: bool,
 }
 
-pub fn snapshot(status: &SharedStatus, last_event: &SharedLastEvent) -> Snapshot {
+pub fn snapshot(
+    status: &SharedStatus,
+    last_event: &SharedLastEvent,
+    counterparty_running: bool,
+) -> Snapshot {
     let mut sessions: Vec<SessionDetail> = status
         .lock()
         .unwrap()
@@ -60,13 +67,19 @@ pub fn snapshot(status: &SharedStatus, last_event: &SharedLastEvent) -> Snapshot
     Snapshot {
         sessions,
         last_event_at: *last_event.lock().unwrap(),
+        counterparty_running,
     }
 }
 
 /// The same snapshot as a JSON string (used as the SSE event payload).
-pub fn snapshot_json(status: &SharedStatus, last_event: &SharedLastEvent) -> String {
-    serde_json::to_string(&snapshot(status, last_event))
-        .unwrap_or_else(|_| "{\"sessions\":[],\"lastEventAt\":null}".to_string())
+pub fn snapshot_json(
+    status: &SharedStatus,
+    last_event: &SharedLastEvent,
+    counterparty_running: bool,
+) -> String {
+    serde_json::to_string(&snapshot(status, last_event, counterparty_running)).unwrap_or_else(
+        |_| "{\"sessions\":[],\"lastEventAt\":null,\"counterpartyRunning\":false}".to_string(),
+    )
 }
 
 /// The pieces of the last logged-on session, used to rebuild a `SessionId` for
@@ -85,6 +98,7 @@ pub struct FixApp {
     logged_on: SharedSession,
     last_event: SharedLastEvent,
     events: broadcast::Sender<String>,
+    counterparty: CounterpartyControl,
 }
 
 impl FixApp {
@@ -93,21 +107,25 @@ impl FixApp {
         logged_on: SharedSession,
         last_event: SharedLastEvent,
         events: broadcast::Sender<String>,
+        counterparty: CounterpartyControl,
     ) -> Self {
         Self {
             session_status,
             logged_on,
             last_event,
             events,
+            counterparty,
         }
     }
 
     /// Push the current session snapshot to any connected SSE clients. Called
     /// after every status change. Errors (no subscribers) are ignored.
     fn broadcast(&self) {
-        let _ = self
-            .events
-            .send(snapshot_json(&self.session_status, &self.last_event));
+        let _ = self.events.send(snapshot_json(
+            &self.session_status,
+            &self.last_event,
+            self.counterparty.is_running(),
+        ));
     }
 
     /// Record the wall-clock time of a real connect/disconnect. Not called on
