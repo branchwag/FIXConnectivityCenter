@@ -6,7 +6,7 @@
 //!   GET  /sessions/log        -> tail a session's log file,  ?id=<session-id>&offset=<u64>
 //!   GET  /config              -> JSON dashboard config (environment label)
 //!   /tools/testcounterparty*      -> in-app test counterparty control
-//!   everything else           -> static files (index.html, styles.css, ...)
+//!   everything else           -> static files served from ./static (index.html, styles.css, ...)
 
 use std::convert::Infallible;
 use std::io::{Read, Seek, SeekFrom};
@@ -310,7 +310,7 @@ pub async fn serve(state: AppState) {
         .route("/tools/send", post(send_message))
         .route("/tools/send/csv", post(send_csv))
         .with_state(state)
-        .fallback_service(ServeDir::new("."));
+        .fallback_service(ServeDir::new("static"));
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8081")
         .await
