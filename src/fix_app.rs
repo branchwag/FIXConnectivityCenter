@@ -7,7 +7,7 @@ use quickfix::{ApplicationCallback, FieldMap, Message, MsgFromAppError, SessionI
 use serde::Serialize;
 use tokio::sync::broadcast;
 
-use crate::counterparty::CounterpartyControl;
+use crate::testcounterparty::TestCounterpartyControl;
 
 /// Session id string -> connected?  (shared with the web layer).
 pub type SharedStatus = Arc<Mutex<HashMap<String, bool>>>;
@@ -61,14 +61,14 @@ pub struct Snapshot {
     pub sessions: Vec<SessionDetail>,
     #[serde(rename = "lastEventAt")]
     pub last_event_at: Option<u64>,
-    #[serde(rename = "counterpartyRunning")]
-    pub counterparty_running: bool,
+    #[serde(rename = "testcounterpartyRunning")]
+    pub testcounterparty_running: bool,
 }
 
 pub fn snapshot(
     status: &SharedStatus,
     last_event: &SharedLastEvent,
-    counterparty_running: bool,
+    testcounterparty_running: bool,
     started: &SharedStarted,
     directions: &HashMap<String, String>,
 ) -> Snapshot {
@@ -93,7 +93,7 @@ pub fn snapshot(
     Snapshot {
         sessions,
         last_event_at: *last_event.lock().unwrap(),
-        counterparty_running,
+        testcounterparty_running,
     }
 }
 
@@ -101,19 +101,19 @@ pub fn snapshot(
 pub fn snapshot_json(
     status: &SharedStatus,
     last_event: &SharedLastEvent,
-    counterparty_running: bool,
+    testcounterparty_running: bool,
     started: &SharedStarted,
     directions: &HashMap<String, String>,
 ) -> String {
     serde_json::to_string(&snapshot(
         status,
         last_event,
-        counterparty_running,
+        testcounterparty_running,
         started,
         directions,
     ))
     .unwrap_or_else(
-        |_| "{\"sessions\":[],\"lastEventAt\":null,\"counterpartyRunning\":false}".to_string(),
+        |_| "{\"sessions\":[],\"lastEventAt\":null,\"testcounterpartyRunning\":false}".to_string(),
     )
 }
 
@@ -135,7 +135,7 @@ pub struct FixApp {
     started: SharedStarted,
     directions: Directions,
     events: broadcast::Sender<String>,
-    counterparty: CounterpartyControl,
+    testcounterparty: TestCounterpartyControl,
 }
 
 impl FixApp {
@@ -147,7 +147,7 @@ impl FixApp {
         started: SharedStarted,
         directions: Directions,
         events: broadcast::Sender<String>,
-        counterparty: CounterpartyControl,
+        testcounterparty: TestCounterpartyControl,
     ) -> Self {
         Self {
             session_status,
@@ -156,7 +156,7 @@ impl FixApp {
             started,
             directions,
             events,
-            counterparty,
+            testcounterparty,
         }
     }
 
@@ -166,7 +166,7 @@ impl FixApp {
         let _ = self.events.send(snapshot_json(
             &self.session_status,
             &self.last_event,
-            self.counterparty.is_running(),
+            self.testcounterparty.is_running(),
             &self.started,
             &self.directions,
         ));

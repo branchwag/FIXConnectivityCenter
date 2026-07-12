@@ -1,4 +1,4 @@
-mod counterparty;
+mod testcounterparty;
 mod csv_send;
 mod fix_app;
 mod logger;
@@ -28,7 +28,7 @@ fn run_fix(
     started: SharedStarted,
     directions: Directions,
     events: broadcast::Sender<String>,
-    counterparty: counterparty::CounterpartyControl,
+    testcounterparty: testcounterparty::TestCounterpartyControl,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let logger = logger::FileLogger::new(logger::LOG_DIR)?;
     let log_factory = LogFactory::try_new(&logger)?;
@@ -41,7 +41,7 @@ fn run_fix(
         started,
         directions,
         events,
-        counterparty,
+        testcounterparty,
     );
     let app = Application::try_new(&callbacks)?;
 
@@ -88,13 +88,13 @@ async fn main() {
     // Per-session enabled state (absent = enabled) driven by the Start/Disconnect
     // buttons, and per-session direction read once from the config.
     let started: SharedStarted = Arc::new(Mutex::new(HashMap::new()));
-    let directions: Directions = Arc::new(counterparty::session_directions("sessions.cfg"));
+    let directions: Directions = Arc::new(testcounterparty::session_directions("sessions.cfg"));
     // Status-change events pushed by the FIX callbacks and streamed to the
     // dashboard over SSE.
     let (events, _) = broadcast::channel::<String>(64);
     // Shared between the FIX callbacks (so its running state rides the SSE
     // stream) and the web layer (which starts/stops it).
-    let counterparty = counterparty::CounterpartyControl::default();
+    let testcounterparty = testcounterparty::TestCounterpartyControl::default();
 
     let fix_status = status.clone();
     let fix_logged = logged_on.clone();
@@ -102,7 +102,7 @@ async fn main() {
     let fix_started = started.clone();
     let fix_directions = directions.clone();
     let fix_events = events.clone();
-    let fix_counterparty = counterparty.clone();
+    let fix_testcounterparty = testcounterparty.clone();
     std::thread::spawn(move || {
         if let Err(e) = run_fix(
             fix_status,
@@ -111,7 +111,7 @@ async fn main() {
             fix_started,
             fix_directions,
             fix_events,
-            fix_counterparty,
+            fix_testcounterparty,
         ) {
             eprintln!("FIX engine error: {e}");
         }
@@ -123,7 +123,7 @@ async fn main() {
         started,
         directions,
         events,
-        counterparty,
+        testcounterparty,
         metrics: metrics::MetricsState::new(),
     })
     .await;

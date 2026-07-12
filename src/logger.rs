@@ -15,10 +15,15 @@ use std::sync::Mutex;
 
 use quickfix::{LogCallback, SessionId};
 
-/// Directory all logs are written into (relative to the process cwd). Shared by
-/// the writer (`FileLogger`) and readers (the web log-tail endpoint) so the two
-/// can't drift.
+/// Directory the main engine's logs are written into (relative to the process
+/// cwd). Shared by the writer (`FileLogger`) and readers (the web log-tail
+/// endpoint) so the two can't drift.
 pub const LOG_DIR: &str = "logs";
+
+/// Directory the in-app test counterparty's logs are written into, kept separate
+/// from the main engine's [`LOG_DIR`] so the two engines' session and event logs
+/// don't intermix (they share filenames like `engine.log`).
+pub const TESTCOUNTERPARTY_LOG_DIR: &str = "logs/testcounterparty";
 
 /// Roll a log file once a write would push it past this many bytes.
 const DEFAULT_MAX_BYTES: u64 = 5 * 1024 * 1024; // 5 MiB

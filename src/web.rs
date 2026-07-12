@@ -5,7 +5,7 @@
 //!   POST /sessions/disconnect -> disable (logout) a session, ?id=<session-id>
 //!   GET  /sessions/log        -> tail a session's log file,  ?id=<session-id>&offset=<u64>
 //!   GET  /config              -> JSON dashboard config (environment label)
-//!   /tools/counterparty*      -> in-app test counterparty control
+//!   /tools/testcounterparty*      -> in-app test counterparty control
 //!   everything else           -> static files (index.html, styles.css, ...)
 
 use std::convert::Infallible;
@@ -25,7 +25,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::services::ServeDir;
 
-use crate::counterparty::CounterpartyControl;
+use crate::testcounterparty::TestCounterpartyControl;
 use crate::fix_app::{self, Directions, SharedLastEvent, SharedStarted, SharedStatus, Snapshot};
 use crate::logger;
 use crate::metrics::{self, MetricsState};
@@ -37,7 +37,7 @@ pub struct AppState {
     pub started: SharedStarted,
     pub directions: Directions,
     pub events: broadcast::Sender<String>,
-    pub counterparty: CounterpartyControl,
+    pub testcounterparty: TestCounterpartyControl,
     pub metrics: MetricsState,
 }
 
@@ -45,7 +45,7 @@ async fn sessions(State(state): State<AppState>) -> Json<Snapshot> {
     Json(fix_app::snapshot(
         &state.status,
         &state.last_event,
-        state.counterparty.is_running(),
+        state.testcounterparty.is_running(),
         &state.started,
         &state.directions,
     ))
@@ -57,7 +57,7 @@ fn broadcast_snapshot(state: &AppState) {
     let _ = state.events.send(fix_app::snapshot_json(
         &state.status,
         &state.last_event,
-        state.counterparty.is_running(),
+        state.testcounterparty.is_running(),
         &state.started,
         &state.directions,
     ));
@@ -73,7 +73,7 @@ async fn events(
     let initial = tokio_stream::once(fix_app::snapshot_json(
         &state.status,
         &state.last_event,
-        state.counterparty.is_running(),
+        state.testcounterparty.is_running(),
         &state.started,
         &state.directions,
     ));
@@ -210,18 +210,18 @@ async fn config() -> Json<serde_json::Value> {
     Json(json!({ "environment": environment }))
 }
 
-async fn counterparty_status(State(state): State<AppState>) -> Json<serde_json::Value> {
-    Json(json!({ "running": state.counterparty.is_running() }))
+async fn testcounterparty_status(State(state): State<AppState>) -> Json<serde_json::Value> {
+    Json(json!({ "running": state.testcounterparty.is_running() }))
 }
 
-async fn counterparty_start(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let running = state.counterparty.start();
+async fn testcounterparty_start(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let running = state.testcounterparty.start();
     broadcast_snapshot(&state); // push the new running state to all SSE clients
     Json(json!({ "running": running }))
 }
 
-async fn counterparty_stop(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let running = state.counterparty.stop();
+async fn testcounterparty_stop(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let running = state.testcounterparty.stop();
     broadcast_snapshot(&state);
     Json(json!({ "running": running }))
 }
@@ -247,9 +247,9 @@ pub async fn serve(state: AppState) {
         .route("/sessions/disconnect", post(session_disconnect))
         .route("/sessions/log", get(session_log))
         .route("/config", get(config))
-        .route("/tools/counterparty", get(counterparty_status))
-        .route("/tools/counterparty/start", post(counterparty_start))
-        .route("/tools/counterparty/stop", post(counterparty_stop))
+        .route("/tools/testcounterparty", get(testcounterparty_status))
+        .route("/tools/testcounterparty/start", post(testcounterparty_start))
+        .route("/tools/testcounterparty/stop", post(testcounterparty_stop))
         .route("/tools/metrics", get(metrics))
         .with_state(state)
         .fallback_service(ServeDir::new("."));

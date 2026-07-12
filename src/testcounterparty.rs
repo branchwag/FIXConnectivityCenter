@@ -1,4 +1,4 @@
-//! In-app test counterparty: a FIX acceptor that mirrors the configured
+//! In-app test testcounterparty: a FIX acceptor that mirrors the configured
 //! initiator sessions (comp ids swapped) so they have something to connect to
 //! for testing. Accepts logons and auto-acks orders with an ExecutionReport.
 //! Controlled (start/stop) from the web UI's Tools section.
@@ -24,7 +24,7 @@ struct TestCounterparty;
 
 impl ApplicationCallback for TestCounterparty {
     fn on_logon(&self, session: &SessionId) {
-        println!("Test counterparty: logon from {}", session.to_repr());
+        println!("Test testcounterparty: logon from {}", session.to_repr());
     }
 
     fn on_msg_from_app(&self, msg: &Message, session: &SessionId) -> Result<(), MsgFromAppError> {
@@ -47,7 +47,7 @@ impl ApplicationCallback for TestCounterparty {
         let _ = exec.set_field(39, "0"); // OrdStatus = New
 
         if let Err(e) = send_to_target(exec, session) {
-            eprintln!("Test counterparty: failed to send ExecutionReport: {e}");
+            eprintln!("Test testcounterparty: failed to send ExecutionReport: {e}");
         }
         Ok(())
     }
@@ -146,7 +146,7 @@ fn build_acceptor_settings(cfg_path: &str) -> Result<SessionSettings, Box<dyn st
 fn run_acceptor(stop: &AtomicBool) -> Result<(), Box<dyn std::error::Error>> {
     let settings = build_acceptor_settings(CFG_PATH)?;
     let store = MemoryMessageStoreFactory::new();
-    let logger = FileLogger::new(crate::logger::LOG_DIR)?;
+    let logger = FileLogger::new(crate::logger::TESTCOUNTERPARTY_LOG_DIR)?;
     let log_factory = LogFactory::try_new(&logger)?;
     let callbacks = TestCounterparty;
     let app = Application::try_new(&callbacks)?;
@@ -160,23 +160,23 @@ fn run_acceptor(stop: &AtomicBool) -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     acceptor.start()?;
-    println!("Test counterparty: started");
+    println!("Test testcounterparty: started");
     while !stop.load(Ordering::SeqCst) {
         std::thread::sleep(Duration::from_millis(200));
     }
     acceptor.stop()?;
-    println!("Test counterparty: stopped");
+    println!("Test testcounterparty: stopped");
     Ok(())
 }
 
-/// Shareable start/stop handle for the test counterparty. `Some(flag)` means a
+/// Shareable start/stop handle for the test testcounterparty. `Some(flag)` means a
 /// thread is running; setting the flag asks it to stop.
 #[derive(Clone, Default)]
-pub struct CounterpartyControl {
+pub struct TestCounterpartyControl {
     inner: Arc<Mutex<Option<Arc<AtomicBool>>>>,
 }
 
-impl CounterpartyControl {
+impl TestCounterpartyControl {
     pub fn is_running(&self) -> bool {
         self.inner.lock().unwrap().is_some()
     }
