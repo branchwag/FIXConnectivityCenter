@@ -17,7 +17,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use quickfix::Session;
+use quickfix::{Session, SessionId};
 use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::broadcast;
@@ -29,6 +29,7 @@ use crate::testcounterparty::TestCounterpartyControl;
 use crate::fix_app::{self, Directions, SharedLastEvent, SharedStarted, SharedStatus, Snapshot};
 use crate::logger;
 use crate::metrics::{self, MetricsState};
+use crate::send;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -235,6 +236,61 @@ async fn metrics(State(state): State<AppState>) -> Json<metrics::Metrics> {
     Json(state.metrics.snapshot())
 }
 
+// --- Tools: manual message send ---
+
+#[derive(Deserialize)]
+struct SendQuery {
+    id: String,
+}
+
+/// Resolve a session id string to a `SessionId`, but only if that session is
+/// currently connected — sending on a down session is rejected so the operator
+/// gets a clear error rather than a silently-queued message.
+fn resolve_connected_session(state: &AppState, id: &str) -> Result<SessionId, String> {
+    let sid = fix_app::parse_session_id(id).ok_or_else(|| format!("invalid session id: {id}"))?;
+    let connected = state.status.lock().unwrap().get(id).copied().unwrap_or(false);
+    if !connected {
+        return Err(format!("session {id} is not connected"));
+    }
+    Ok(sid)
+}
+
+/// Send a single pasted message (raw FIX or JSON) on `?id=<session>`.
+async fn send_message(
+    State(state): State<AppState>,
+    Query(q): Query<SendQuery>,
+    body: String,
+) -> Json<serde_json::Value> {
+    match resolve_connected_session(&state, &q.id) {
+        Err(e) => Json(json!({ "ok": false, "error": e })),
+        Ok(sid) => {
+            let r = send::send_single(&body, &sid);
+            Json(json!({ "ok": r.ok, "error": r.error }))
+        }
+    }
+}
+
+/// Send a CSV batch (one message per row) on `?id=<session>`. The request body
+/// is the CSV text.
+async fn send_csv(
+    State(state): State<AppState>,
+    Query(q): Query<SendQuery>,
+    body: String,
+) -> Json<serde_json::Value> {
+    match resolve_connected_session(&state, &q.id) {
+        Err(e) => Json(json!({ "ok": false, "error": e, "sent": 0, "total": 0, "errors": [] })),
+        Ok(sid) => {
+            let r = send::send_csv(&body, &sid);
+            Json(json!({
+                "ok": r.ok,
+                "sent": r.sent,
+                "total": r.total,
+                "errors": r.errors,
+            }))
+        }
+    }
+}
+
 pub async fn serve(state: AppState) {
     // Keep the host metrics fresh in the background so /tools/metrics is a cheap
     // read and CPU usage reflects a real sampling interval.
@@ -251,6 +307,8 @@ pub async fn serve(state: AppState) {
         .route("/tools/testcounterparty/start", post(testcounterparty_start))
         .route("/tools/testcounterparty/stop", post(testcounterparty_stop))
         .route("/tools/metrics", get(metrics))
+        .route("/tools/send", post(send_message))
+        .route("/tools/send/csv", post(send_csv))
         .with_state(state)
         .fallback_service(ServeDir::new("."));
 

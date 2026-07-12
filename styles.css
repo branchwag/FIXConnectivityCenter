@@ -548,3 +548,139 @@ code {
   padding: 0.6rem 1rem;
   margin-bottom: 1.25rem;
 }
+
+/* ============================================================
+   Send Message page (send.html)
+   ============================================================ */
+.send {
+  position: relative;
+  z-index: 1;
+  width: 820px;
+  max-width: 92vw;
+  margin: 3rem 0;
+}
+
+.send-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+.send-header h1 {
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg);
+  text-shadow: 0 0 18px rgba(79, 195, 247, 0.35);
+  margin: 0;
+}
+
+/* Caution strip — this sends real order flow on a live session. */
+.caution {
+  background: rgba(250, 180, 50, 0.08);
+  border: 1px solid var(--s2);
+  color: var(--s2);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  margin-bottom: 1.25rem;
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+.field-label {
+  display: block;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.65rem;
+  margin-bottom: 0.4rem;
+}
+
+.control {
+  width: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  padding: 0.6rem 0.75rem;
+}
+.control:focus {
+  outline: none;
+  border-color: var(--border-strong);
+}
+textarea.control {
+  min-height: 120px;
+  resize: vertical;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+select.control {
+  cursor: pointer;
+}
+
+.send-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.result {
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+}
+.result.ok { color: var(--s1); }
+.result.err { color: var(--s3); }
+.result.warn { color: var(--s2); }
+.result.pending { color: var(--muted); }
+
+.errors-list {
+  margin: 0.6rem 0 0;
+  padding-left: 1.15rem;
+  color: var(--s3);
+  font-size: 0.78rem;
+}
+.errors-list li { margin: 0.15rem 0; }
+
+.hint {
+  color: var(--muted);
+  font-size: 0.72rem;
+  margin-top: 0.4rem;
+}
+
+/* CSV format documentation */
+.fmt-doc {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.fmt-doc ul {
+  margin: 0.5rem 0;
+  padding-left: 1.2rem;
+}
+.fmt-doc li { margin: 0.2rem 0; }
+.fmt-doc code {
+  font-size: 0.85em;
+}
+.fmt-doc pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  color: var(--code-fg);
+  padding: 0.75rem 0.9rem;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  margin: 0.7rem 0;
+}
+.template-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.template-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}

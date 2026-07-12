@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Send Message · FIX Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="styles.css" />
+  </head>
+  <body>
+    <header id="envBanner" class="env-banner">Environment: …</header>
+    <div class="send">
+      <div class="send-header">
+        <h1 class="h5">Send Message</h1>
+        <a href="/" class="back-link">← Sessions</a>
+      </div>
+
+      <div class="caution">
+        ⚠ Messages are sent on the selected <strong>live</strong> session — in a
+        real environment this is real order flow. Check the environment banner
+        above before sending.
+      </div>
+
+      <!-- Session picker -->
+      <div class="panel">
+        <div class="field" style="margin-bottom: 0">
+          <label class="field-label" for="session">Target session</label>
+          <select id="session" class="control">
+            <option disabled>loading…</option>
+          </select>
+          <div class="hint">Only connected sessions can be selected.</div>
+        </div>
+      </div>
+
+      <!-- Single message -->
+      <div class="section-title">Single message</div>
+      <div class="panel">
+        <div class="field" style="margin-bottom: 0">
+          <label class="field-label" for="msg">Raw FIX or JSON</label>
+          <textarea
+            id="msg"
+            class="control"
+            spellcheck="false"
+            placeholder="FIX:  35=D|55=EUR/USD|54=1|38=1000|44=1.2345|11=ORD-1&#10;JSON: {&quot;35&quot;:&quot;D&quot;,&quot;55&quot;:&quot;EUR/USD&quot;,&quot;54&quot;:&quot;1&quot;,&quot;38&quot;:1000}"
+          ></textarea>
+          <div class="hint">
+            FIX fields are <code>tag=value</code> separated by <code>|</code>,
+            <code>^</code>, or SOH. JSON keys are FIX tags (or
+            <code>MsgType</code>). Header fields (8/9/10/34/49/52/56) and
+            Sender/Target are filled from the session.
+          </div>
+        </div>
+        <div class="send-row">
+          <button id="sendBtn" class="btn btn-sm btn-outline-light" disabled>
+            Send
+          </button>
+          <span id="singleResult" class="result"></span>
+        </div>
+      </div>
+
+      <!-- CSV batch -->
+      <div class="section-title">CSV batch</div>
+      <div class="panel">
+        <div class="field" style="margin-bottom: 0">
+          <label class="field-label" for="csvFile">CSV file</label>
+          <input id="csvFile" class="control" type="file" accept=".csv,text/csv" />
+          <div class="hint">One FIX message is sent per data row, in order.</div>
+        </div>
+        <div class="send-row">
+          <button id="csvBtn" class="btn btn-sm btn-outline-light" disabled>
+            Send CSV
+          </button>
+          <span id="csvResult" class="result"></span>
+        </div>
+        <ul id="csvErrors" class="errors-list"></ul>
+      </div>
+
+      <!-- Accepted CSV format -->
+      <div class="section-title">Accepted CSV format</div>
+      <div class="panel fmt-doc">
+        <p style="margin-top: 0">
+          The first row is a header of column names; each following row is one
+          message.
+        </p>
+        <ul>
+          <li>
+            <code>MsgType</code> — the FIX message type (tag 35), e.g.
+            <code>D</code> for New Order&nbsp;– Single.
+          </li>
+          <li>
+            <strong>Numeric columns</strong> are FIX tags carried in the message
+            body, e.g. <code>55</code>&nbsp;Symbol, <code>54</code>&nbsp;Side,
+            <code>38</code>&nbsp;OrderQty, <code>44</code>&nbsp;Price.
+          </li>
+          <li>
+            <code>SenderCompID</code> / <code>TargetCompID</code> columns are
+            <strong>optional and ignored</strong> — they're filled from the
+            selected session.
+          </li>
+        </ul>
+        <pre>MsgType,SenderCompID,TargetCompID,55,54,38,44
+D,FIXDEV,TEST,EUR/USD,1,1000,1.12345
+D,FIXDEV,TEST,USD/JPY,2,500,150.25</pre>
+        <p style="margin-bottom: 0">
+          <a class="template-link" href="/send_template.csv" download
+            >⭳ Download template (send_template.csv)</a
+          >
+        </p>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let sessions = [];
+
+      function escapeHtml(s) {
+        return String(s).replace(
+          /[&<>]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c],
+        );
+      }
+
+      function setResult(el, cls, txt) {
+        el.className = "result " + cls;
+        el.textContent = txt;
+      }
+
+      function renderSessions() {
+        const sel = $("session");
+        const prev = sel.value;
+        sel.innerHTML = "";
+        if (sessions.length === 0) {
+          const o = document.createElement("option");
+          o.textContent = "(no sessions)";
+          o.disabled = true;
+          sel.appendChild(o);
+          updateEnabled();
+          return;
+        }
+        for (const s of sessions) {
+          const o = document.createElement("option");
+          o.value = s.SessionID;
+          o.textContent = `${s.SessionID} — ${s.Status}`;
+          o.disabled = s.Status !== "Connected";
+          sel.appendChild(o);
+        }
+        // Keep the current selection if it's still connected; otherwise pick the
+        // first connected session.
+        const firstConnected = sessions.find((s) => s.Status === "Connected");
+        const keep = sessions.find(
+          (s) => s.SessionID === prev && s.Status === "Connected",
+        );
+        sel.value = keep
+          ? prev
+          : firstConnected
+            ? firstConnected.SessionID
+            : "";
+        updateEnabled();
+      }
+
+      function updateEnabled() {
+        const sel = $("session");
+        const opt = sel.selectedOptions[0];
+        const ok = !!sel.value && opt && !opt.disabled;
+        $("sendBtn").disabled = !ok;
+        $("csvBtn").disabled = !ok || $("csvFile").files.length === 0;
+      }
+
+      async function loadSessions() {
+        try {
+          const r = await fetch("/sessions", { cache: "no-store" });
+          const d = await r.json();
+          sessions = d.sessions || [];
+        } catch {
+          sessions = [];
+        }
+        renderSessions();
+      }
+
+      async function sendSingle() {
+        const id = $("session").value;
+        if (!id) return;
+        setResult($("singleResult"), "pending", "sending…");
+        try {
+          const r = await fetch(`/tools/send?id=${encodeURIComponent(id)}`, {
+            method: "POST",
+            cache: "no-store",
+            body: $("msg").value,
+          });
+          const d = await r.json();
+          if (d.ok) setResult($("singleResult"), "ok", "✓ sent");
+          else setResult($("singleResult"), "err", "✗ " + (d.error || "failed"));
+        } catch {
+          setResult($("singleResult"), "err", "✗ request failed");
+        }
+      }
+
+      async function sendCsv() {
+        const id = $("session").value;
+        const f = $("csvFile").files[0];
+        if (!id || !f) return;
+        setResult($("csvResult"), "pending", "sending…");
+        $("csvErrors").innerHTML = "";
+        let text;
+        try {
+          text = await f.text();
+        } catch {
+          setResult($("csvResult"), "err", "✗ could not read file");
+          return;
+        }
+        try {
+          const r = await fetch(`/tools/send/csv?id=${encodeURIComponent(id)}`, {
+            method: "POST",
+            cache: "no-store",
+            body: text,
+          });
+          const d = await r.json();
+          if (d.error && !d.total) {
+            setResult($("csvResult"), "err", "✗ " + d.error);
+            return;
+          }
+          const cls = d.ok ? "ok" : d.sent > 0 ? "warn" : "err";
+          const mark = d.ok ? "✓" : "⚠";
+          setResult($("csvResult"), cls, `${mark} sent ${d.sent}/${d.total}`);
+          if (d.errors && d.errors.length) {
+            $("csvErrors").innerHTML = d.errors
+              .map((e) => `<li>line ${e.row}: ${escapeHtml(e.error)}</li>`)
+              .join("");
+          }
+        } catch {
+          setResult($("csvResult"), "err", "✗ request failed");
+        }
+      }
+
+      // Environment banner (same source as the other pages).
+      fetch("/config", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((c) => {
+          $("envBanner").textContent = `Environment: ${c.environment}`;
+        })
+        .catch(() => {
+          $("envBanner").textContent = "Environment: unknown";
+        });
+
+      $("session").addEventListener("change", updateEnabled);
+      $("csvFile").addEventListener("change", updateEnabled);
+      $("sendBtn").addEventListener("click", sendSingle);
+      $("csvBtn").addEventListener("click", sendCsv);
+
+      loadSessions();
+      // Keep session statuses fresh so the picker enables/disables in real time.
+      setInterval(loadSessions, 3000);
+    </script>
+  </body>
+</html>

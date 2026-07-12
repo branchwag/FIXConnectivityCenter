@@ -1,8 +1,8 @@
 mod testcounterparty;
-mod csv_send;
 mod fix_app;
 mod logger;
 mod metrics;
+mod send;
 mod web;
 
 use std::collections::HashMap;
@@ -11,19 +11,21 @@ use std::time::Duration;
 
 use quickfix::{
     Application, ConnectionHandler, FixSocketServerKind, Initiator, LogFactory,
-    MemoryMessageStoreFactory, SessionId, SessionSettings,
+    MemoryMessageStoreFactory, SessionSettings,
 };
 use tokio::sync::broadcast;
 
-use fix_app::{Directions, FixApp, SharedLastEvent, SharedSession, SharedStarted, SharedStatus};
+use fix_app::{Directions, FixApp, SharedLastEvent, SharedStarted, SharedStatus};
 use web::AppState;
 
-/// Run the FIX initiator: start the engine, wait for a logon, send the CSV
-/// orders once, then keep the engine alive for the life of the process.
+/// Run the FIX initiator: start the engine, then keep the thread (and therefore
+/// the initiator) alive for the life of the process so the engine keeps running
+/// and the dashboard keeps reflecting live session state (logon / logout /
+/// reconnect) instead of stopping after the first logout. Messages are sent
+/// on demand from the dashboard's Send tool, not automatically on logon.
 #[allow(clippy::too_many_arguments)]
 fn run_fix(
     status: SharedStatus,
-    logged_on: SharedSession,
     last_event: SharedLastEvent,
     started: SharedStarted,
     directions: Directions,
@@ -36,7 +38,6 @@ fn run_fix(
     let store_factory = MemoryMessageStoreFactory::new();
     let callbacks = FixApp::new(
         status.clone(),
-        logged_on.clone(),
         last_event,
         started,
         directions,
@@ -55,27 +56,7 @@ fn run_fix(
 
     initiator.start()?;
 
-    // Send the CSV orders once, on the first logon. Then keep this thread (and
-    // therefore the initiator) alive for the life of the process so the engine
-    // keeps running and the dashboard keeps reflecting live session state
-    // (logon / logout / reconnect) instead of stopping after the first logout.
-    let mut sent = false;
     loop {
-        if !sent {
-            let key = logged_on.lock().unwrap().clone();
-            if let Some(key) = key {
-                let sid = SessionId::try_new(
-                    &key.begin_string,
-                    &key.sender_comp_id,
-                    &key.target_comp_id,
-                    "",
-                )?;
-                if let Err(e) = csv_send::send_from_csv("messages.csv", &sid) {
-                    eprintln!("Error sending FIX message: {e}");
-                }
-                sent = true;
-            }
-        }
         std::thread::sleep(Duration::from_secs(1));
     }
 }
@@ -83,7 +64,6 @@ fn run_fix(
 #[tokio::main]
 async fn main() {
     let status: SharedStatus = Arc::new(Mutex::new(HashMap::new()));
-    let logged_on: SharedSession = Arc::new(Mutex::new(None));
     let last_event: SharedLastEvent = Arc::new(Mutex::new(None));
     // Per-session enabled state (absent = enabled) driven by the Start/Disconnect
     // buttons, and per-session direction read once from the config.
@@ -97,7 +77,6 @@ async fn main() {
     let testcounterparty = testcounterparty::TestCounterpartyControl::default();
 
     let fix_status = status.clone();
-    let fix_logged = logged_on.clone();
     let fix_last_event = last_event.clone();
     let fix_started = started.clone();
     let fix_directions = directions.clone();
@@ -106,7 +85,6 @@ async fn main() {
     std::thread::spawn(move || {
         if let Err(e) = run_fix(
             fix_status,
-            fix_logged,
             fix_last_event,
             fix_started,
             fix_directions,

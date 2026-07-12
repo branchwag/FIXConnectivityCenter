@@ -117,20 +117,8 @@ pub fn snapshot_json(
     )
 }
 
-/// The pieces of the last logged-on session, used to rebuild a `SessionId` for
-/// sending. Stored as plain strings so it can cross the thread boundary.
-#[derive(Clone)]
-pub struct SessionKey {
-    pub begin_string: String,
-    pub sender_comp_id: String,
-    pub target_comp_id: String,
-}
-
-pub type SharedSession = Arc<Mutex<Option<SessionKey>>>;
-
 pub struct FixApp {
     session_status: SharedStatus,
-    logged_on: SharedSession,
     last_event: SharedLastEvent,
     started: SharedStarted,
     directions: Directions,
@@ -139,10 +127,8 @@ pub struct FixApp {
 }
 
 impl FixApp {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         session_status: SharedStatus,
-        logged_on: SharedSession,
         last_event: SharedLastEvent,
         started: SharedStarted,
         directions: Directions,
@@ -151,7 +137,6 @@ impl FixApp {
     ) -> Self {
         Self {
             session_status,
-            logged_on,
             last_event,
             started,
             directions,
@@ -194,11 +179,6 @@ impl ApplicationCallback for FixApp {
             .lock()
             .unwrap()
             .insert(session.to_repr(), true);
-        *self.logged_on.lock().unwrap() = Some(SessionKey {
-            begin_string: session.get_begin_string().unwrap_or_default(),
-            sender_comp_id: session.get_sender_comp_id().unwrap_or_default(),
-            target_comp_id: session.get_target_comp_id().unwrap_or_default(),
-        });
         self.mark_event();
         self.broadcast();
         println!("Session {} has logged on.", session.to_repr());
