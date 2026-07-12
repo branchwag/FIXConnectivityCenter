@@ -13,6 +13,7 @@
     <link rel="stylesheet" type="text/css" href="styles.css" />
   </head>
   <body>
+    <header id="envBanner" class="env-banner">Environment: …</header>
     <div class="dashboard">
       <div class="dashboard-header">
         <h1 class="h5 mb-0">FIX Sessions</h1>
@@ -178,6 +179,18 @@
           }, 1500);
         };
       }
+
+      // Environment label comes from the server (env var FIX_ENVIRONMENT), so
+      // the same static page shows the right banner per deployment.
+      const envBanner = document.getElementById("envBanner");
+      fetch("/config", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((c) => {
+          envBanner.textContent = `Environment: ${c.environment}`;
+        })
+        .catch(() => {
+          envBanner.textContent = "Environment: unknown";
+        });
 
       renderMeta();
       connect();

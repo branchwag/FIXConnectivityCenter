@@ -4,6 +4,7 @@
 //!   POST /sessions/start      -> enable (logon) a session,  ?id=<session-id>
 //!   POST /sessions/disconnect -> disable (logout) a session, ?id=<session-id>
 //!   GET  /sessions/log        -> tail a session's log file,  ?id=<session-id>&offset=<u64>
+//!   GET  /config              -> JSON dashboard config (environment label)
 //!   /tools/counterparty*      -> in-app test counterparty control
 //!   everything else           -> static files (index.html, styles.css, ...)
 
@@ -196,6 +197,17 @@ async fn session_log(Query(q): Query<LogQuery>) -> Json<serde_json::Value> {
 
 // --- Tools: in-app test counterparty (FIX acceptor) ---
 
+// Environment label for the dashboard banner, from `FIX_ENVIRONMENT`
+// (defaults to "UNKNOWN" when unset or empty). Read per-request so it always
+// reflects the current process environment.
+async fn config() -> Json<serde_json::Value> {
+    let environment = std::env::var("FIX_ENVIRONMENT")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or_else(|| "UNKNOWN".to_string());
+    Json(json!({ "environment": environment }))
+}
+
 async fn counterparty_status(State(state): State<AppState>) -> Json<serde_json::Value> {
     Json(json!({ "running": state.counterparty.is_running() }))
 }
@@ -219,6 +231,7 @@ pub async fn serve(state: AppState) {
         .route("/sessions/start", post(session_start))
         .route("/sessions/disconnect", post(session_disconnect))
         .route("/sessions/log", get(session_log))
+        .route("/config", get(config))
         .route("/tools/counterparty", get(counterparty_status))
         .route("/tools/counterparty/start", post(counterparty_start))
         .route("/tools/counterparty/stop", post(counterparty_stop))
