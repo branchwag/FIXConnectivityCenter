@@ -2,7 +2,6 @@ mod counterparty;
 mod csv_send;
 mod fix_app;
 mod logger;
-mod proto;
 mod web;
 
 use std::collections::HashMap;

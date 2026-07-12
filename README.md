@@ -1,13 +1,12 @@
 # FIX Connectivity Center
 
 An app built with Rust to manage FIX sessions. It runs a FIX engine (via the [`quickfix`](https://crates.io/crates/quickfix) crate — bindings to the
-QuickFIX C++ engine), serves a status dashboard, sends orders from `messages.csv`
-on logon, and streams inbound app messages as protobuf over TCP to `localhost:9090`.
+QuickFIX C++ engine), serves a status dashboard, and sends orders from `messages.csv`
+on logon.
 
 ## Build & run
 
-Requires a C/C++ toolchain + cmake (the `quickfix` crate builds libquickfix) and
-`protoc` (for the protobuf codegen in `build.rs`).
+Requires a C/C++ toolchain + cmake (the `quickfix` crate builds libquickfix).
 
     $ cargo run
     Server starting on http://:8081

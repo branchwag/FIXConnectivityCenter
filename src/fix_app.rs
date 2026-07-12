@@ -1,17 +1,13 @@
 //! FIX application callbacks: session status tracking + inbound message streaming.
 
 use std::collections::HashMap;
-use std::io::Write;
-use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
 
-use prost::Message as _;
 use quickfix::{ApplicationCallback, FieldMap, Message, MsgFromAppError, SessionId};
 use serde::Serialize;
 use tokio::sync::broadcast;
 
 use crate::counterparty::CounterpartyControl;
-use crate::proto;
 
 /// Session id string -> connected?  (shared with the web layer).
 pub type SharedStatus = Arc<Mutex<HashMap<String, bool>>>;
@@ -224,30 +220,8 @@ impl ApplicationCallback for FixApp {
         }
     }
 
-    fn on_msg_from_app(&self, msg: &Message, session: &SessionId) -> Result<(), MsgFromAppError> {
-        println!("on_msg_from_app called");
-
-        let proto_msg = proto::from_fix_message(msg);
-        let mut buf = Vec::new();
-        if let Err(e) = proto_msg.encode(&mut buf) {
-            eprintln!("Failed to encode proto message: {e}");
-            return Ok(());
-        }
-
-        // Stream the encoded protobuf to the downstream TCP server, off the
-        // engine's callback thread (mirrors the Go `go func()` + net.Dial).
-        let session_repr = session.to_repr();
-        std::thread::spawn(move || match TcpStream::connect("localhost:9090") {
-            Ok(mut conn) => {
-                if let Err(e) = conn.write_all(&buf) {
-                    eprintln!("Failed to send protobuf msg over TCP: {e}");
-                    return;
-                }
-                println!("FIX msg from session {session_repr} has been streamed via TCP");
-            }
-            Err(e) => eprintln!("Failed to connect to TCP server: {e}"),
-        });
-
+    fn on_msg_from_app(&self, _msg: &Message, session: &SessionId) -> Result<(), MsgFromAppError> {
+        println!("on_msg_from_app called for session {}", session.to_repr());
         Ok(())
     }
 }
