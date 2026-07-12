@@ -28,6 +28,7 @@ use tower_http::services::ServeDir;
 use crate::counterparty::CounterpartyControl;
 use crate::fix_app::{self, Directions, SharedLastEvent, SharedStarted, SharedStatus, Snapshot};
 use crate::logger;
+use crate::metrics::{self, MetricsState};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -37,6 +38,7 @@ pub struct AppState {
     pub directions: Directions,
     pub events: broadcast::Sender<String>,
     pub counterparty: CounterpartyControl,
+    pub metrics: MetricsState,
 }
 
 async fn sessions(State(state): State<AppState>) -> Json<Snapshot> {
@@ -224,7 +226,20 @@ async fn counterparty_stop(State(state): State<AppState>) -> Json<serde_json::Va
     Json(json!({ "running": running }))
 }
 
+// --- Tools: host machine-health metrics ---
+
+/// Current host resource snapshot (CPU, memory, swap, disk, load, uptime).
+/// Polled by the machine-health page; served from the background-refreshed
+/// [`MetricsState`] so the response is a cheap read.
+async fn metrics(State(state): State<AppState>) -> Json<metrics::Metrics> {
+    Json(state.metrics.snapshot())
+}
+
 pub async fn serve(state: AppState) {
+    // Keep the host metrics fresh in the background so /tools/metrics is a cheap
+    // read and CPU usage reflects a real sampling interval.
+    metrics::spawn_refresher(state.metrics.clone());
+
     let app = Router::new()
         .route("/sessions", get(sessions))
         .route("/events", get(events))
@@ -235,6 +250,7 @@ pub async fn serve(state: AppState) {
         .route("/tools/counterparty", get(counterparty_status))
         .route("/tools/counterparty/start", post(counterparty_start))
         .route("/tools/counterparty/stop", post(counterparty_stop))
+        .route("/tools/metrics", get(metrics))
         .with_state(state)
         .fallback_service(ServeDir::new("."));
 

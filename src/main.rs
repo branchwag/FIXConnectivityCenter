@@ -2,6 +2,7 @@ mod counterparty;
 mod csv_send;
 mod fix_app;
 mod logger;
+mod metrics;
 mod web;
 
 use std::collections::HashMap;
@@ -123,6 +124,7 @@ async fn main() {
         directions,
         events,
         counterparty,
+        metrics: metrics::MetricsState::new(),
     })
     .await;
 }

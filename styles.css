@@ -197,6 +197,30 @@ code {
   box-shadow: 0 0 26px -10px rgba(79,195,247,0.4);
 }
 
+/* A tool-card that is itself a link to a sub-page. */
+.tool-card-link {
+  margin-top: 0.85rem;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.tool-card-link:hover {
+  color: inherit;
+}
+.tool-go {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: transform 0.2s ease;
+}
+.tool-card-link:hover .tool-go {
+  transform: translateX(3px);
+  color: var(--accent-hover);
+}
+
 .tool-name {
   font-weight: 400;
   color: var(--fg);
@@ -239,3 +263,230 @@ code {
 .text-danger { color: var(--s3) !important; }
 .text-secondary { color: var(--muted) !important; }
 .text-muted { color: var(--muted) !important; }
+
+/* ============================================================
+   Machine Health monitoring page (health.html)
+   ============================================================ */
+.health {
+  position: relative;
+  z-index: 1;
+  width: 1100px;
+  max-width: 92vw;
+  margin: 3rem 0;
+}
+
+.health-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.health-header h1 {
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg);
+  text-shadow: 0 0 18px rgba(79, 195, 247, 0.35);
+  margin: 0;
+}
+.health-head-right {
+  display: flex;
+  align-items: baseline;
+  gap: 1.25rem;
+}
+.back-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.back-link:hover { color: var(--accent-hover); }
+.updated {
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.updated.stale { color: var(--s3); }
+
+/* Host identity strip */
+.host-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: 1rem 1.35rem;
+  margin-bottom: 1.5rem;
+}
+.host-meta .k {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.62rem;
+  display: block;
+}
+.host-meta .v {
+  color: var(--fg);
+  font-size: 0.85rem;
+}
+
+/* KPI stat tiles */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
+  padding: 1.1rem 1.25rem;
+}
+.stat-tile .label {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.65rem;
+}
+.stat-tile .value {
+  font-size: 2.1rem;
+  line-height: 1.05;
+  margin-top: 0.4rem;
+}
+.stat-tile .value .unit { font-size: 1rem; color: var(--muted); }
+.stat-tile .sub {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-top: 0.3rem;
+}
+
+.section-title {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin: 1.75rem 0 0.75rem;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 1.25rem 1.4rem;
+}
+
+/* A single labelled meter row: label | track | value */
+.meter-row {
+  display: grid;
+  grid-template-columns: 170px 1fr 92px;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.45rem 0;
+}
+.meter-row .m-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.meter-row .m-val {
+  text-align: right;
+  font-size: 0.85rem;
+  color: var(--fg);
+}
+.meter {
+  position: relative;
+  height: 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.meter-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-radius: 0 3px 3px 0;
+  transition: width 0.4s ease, background 0.3s ease;
+}
+
+/* Utilization status: color + always-present numeric value (never color alone) */
+.st-good { color: var(--s1); }
+.st-warn { color: var(--s2); }
+.st-crit { color: var(--s3); }
+.fill-good { background: var(--s1); }
+.fill-warn { background: var(--s2); }
+.fill-crit { background: var(--s3); }
+.fill-neutral { background: var(--accent); }
+
+/* CPU hero: big meter + sparkline history */
+.cpu-hero {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1.75rem;
+  align-items: center;
+}
+@media (max-width: 780px) {
+  .cpu-hero { grid-template-columns: 1fr; }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .meter-row { grid-template-columns: 120px 1fr 74px; }
+}
+.cpu-big-val {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+.cpu-big-val .unit { font-size: 1.1rem; color: var(--muted); }
+.cpu-big-sub { color: var(--muted); font-size: 0.78rem; margin-top: 0.3rem; }
+.spark {
+  width: 100%;
+  height: 70px;
+  display: block;
+}
+.spark-line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.spark-area { fill: rgba(79, 195, 247, 0.1); stroke: none; }
+.spark-caption {
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 0.35rem;
+  text-align: right;
+}
+
+/* Per-core mini meters */
+.cores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.5rem 1.25rem;
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+}
+.core {
+  display: grid;
+  grid-template-columns: 42px 1fr 46px;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.72rem;
+}
+.core .c-idx { color: var(--muted); }
+.core .c-val { text-align: right; color: var(--fg); }
+.core .meter { height: 8px; }
+
+.panel + .panel { margin-top: 1.25rem; }
+
+.health-offline {
+  background: rgba(255, 84, 112, 0.08);
+  border: 1px solid var(--s3);
+  color: var(--s3);
+  letter-spacing: 0.06em;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1.25rem;
+}

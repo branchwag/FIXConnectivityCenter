@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Machine Health · FIX Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" type="text/css" href="styles.css" />
+  </head>
+  <body>
+    <header id="envBanner" class="env-banner">Environment: …</header>
+    <div class="health">
+      <div class="health-header">
+        <h1 class="h5">Machine Health</h1>
+        <div class="health-head-right">
+          <span id="updated" class="updated">connecting…</span>
+          <a href="/" class="back-link">← Sessions</a>
+        </div>
+      </div>
+
+      <div id="offline" class="health-offline d-none">
+        Metrics endpoint unreachable — showing last known values.
+      </div>
+
+      <!-- Host identity -->
+      <div class="host-meta">
+        <div><span class="k">Host</span><span id="hHost" class="v">—</span></div>
+        <div><span class="k">OS</span><span id="hOs" class="v">—</span></div>
+        <div><span class="k">Kernel</span><span id="hKernel" class="v">—</span></div>
+        <div><span class="k">Arch</span><span id="hArch" class="v">—</span></div>
+        <div><span class="k">Cores</span><span id="hCores" class="v">—</span></div>
+        <div><span class="k">Uptime</span><span id="hUptime" class="v">—</span></div>
+      </div>
+
+      <!-- KPI tiles -->
+      <div class="kpi-row">
+        <div class="stat-tile">
+          <div class="label">CPU</div>
+          <div id="kCpu" class="value">—</div>
+          <div id="kCpuSub" class="sub">utilization</div>
+        </div>
+        <div class="stat-tile">
+          <div class="label">Memory</div>
+          <div id="kMem" class="value">—</div>
+          <div id="kMemSub" class="sub">used</div>
+        </div>
+        <div class="stat-tile">
+          <div class="label">Swap</div>
+          <div id="kSwap" class="value">—</div>
+          <div id="kSwapSub" class="sub">used</div>
+        </div>
+        <div class="stat-tile">
+          <div class="label">Load · 1m</div>
+          <div id="kLoad" class="value">—</div>
+          <div id="kLoadSub" class="sub">per-core</div>
+        </div>
+      </div>
+
+      <!-- CPU -->
+      <div class="section-title">Processor</div>
+      <div class="panel">
+        <div class="cpu-hero">
+          <div>
+            <div id="cpuBigVal" class="cpu-big-val st-good">
+              —<span class="unit">%</span>
+            </div>
+            <div id="cpuBigSub" class="cpu-big-sub">global utilization</div>
+            <div style="margin-top: 1rem">
+              <div class="meter">
+                <div id="cpuFill" class="meter-fill fill-neutral"></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <svg
+              class="spark"
+              viewBox="0 0 300 70"
+              preserveAspectRatio="none"
+              aria-label="CPU utilization history"
+            >
+              <polygon id="sparkArea" class="spark-area" points="" />
+              <polyline id="sparkLine" class="spark-line" points="" />
+            </svg>
+            <div class="spark-caption">last 60 samples · 0–100%</div>
+          </div>
+        </div>
+        <div id="cores" class="cores-grid"></div>
+      </div>
+
+      <!-- Memory -->
+      <div class="section-title">Memory</div>
+      <div class="panel">
+        <div class="meter-row">
+          <span class="m-label">RAM</span>
+          <div class="meter"><div id="memFill" class="meter-fill"></div></div>
+          <span id="memVal" class="m-val">—</span>
+        </div>
+        <div class="meter-row">
+          <span class="m-label">Swap</span>
+          <div class="meter"><div id="swapFill" class="meter-fill"></div></div>
+          <span id="swapVal" class="m-val">—</span>
+        </div>
+      </div>
+
+      <!-- Disks -->
+      <div class="section-title">Disk</div>
+      <div class="panel">
+        <div id="disks"></div>
+      </div>
+    </div>
+
+    <script>
+      // Utilization thresholds → status (color + label; the number is always
+      // shown too, so status is never conveyed by color alone).
+      const WARN = 70;
+      const CRIT = 90;
+      function statusOf(pct) {
+        if (pct >= CRIT) return "crit";
+        if (pct >= WARN) return "warn";
+        return "good";
+      }
+
+      function fmtBytes(n) {
+        if (n === 0) return "0 B";
+        const u = ["B", "KiB", "MiB", "GiB", "TiB"];
+        const i = Math.floor(Math.log(n) / Math.log(1024));
+        const v = n / Math.pow(1024, i);
+        return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${u[i]}`;
+      }
+
+      function fmtUptime(secs) {
+        const d = Math.floor(secs / 86400);
+        const h = Math.floor((secs % 86400) / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        if (d > 0) return `${d}d ${h}h ${m}m`;
+        if (h > 0) return `${h}h ${m}m`;
+        return `${m}m`;
+      }
+
+      const $ = (id) => document.getElementById(id);
+
+      // Set a meter fill's width + status color, and paint its numeric value.
+      function setMeter(fillEl, valEl, pct, text) {
+        const st = statusOf(pct);
+        fillEl.style.width = `${Math.min(pct, 100)}%`;
+        fillEl.className = `meter-fill fill-${st}`;
+        if (valEl) {
+          valEl.textContent = text;
+          valEl.className = `m-val st-${st}`;
+        }
+      }
+
+      // Rolling CPU history for the sparkline.
+      const HISTORY = 60;
+      const cpuHist = [];
+      function pushCpu(v) {
+        cpuHist.push(v);
+        if (cpuHist.length > HISTORY) cpuHist.shift();
+        drawSpark();
+      }
+      function drawSpark() {
+        const W = 300,
+          H = 70;
+        const n = cpuHist.length;
+        if (n < 2) return;
+        const pts = cpuHist.map((v, i) => {
+          const x = (i / (n - 1)) * W;
+          const y = H - (Math.min(v, 100) / 100) * H;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        });
+        $("sparkLine").setAttribute("points", pts.join(" "));
+        $("sparkArea").setAttribute(
+          "points",
+          `0,${H} ${pts.join(" ")} ${W},${H}`,
+        );
+      }
+
+      function render(m) {
+        // Host strip
+        $("hHost").textContent = m.host.name;
+        $("hOs").textContent = m.host.os;
+        $("hKernel").textContent = m.host.kernel;
+        $("hArch").textContent = m.host.arch;
+        $("hCores").textContent = m.host.cpu_count;
+        $("hUptime").textContent = fmtUptime(m.uptime_secs);
+
+        // CPU
+        const cpu = m.cpu.usage;
+        const cpuSt = statusOf(cpu);
+        $("cpuBigVal").innerHTML = `${cpu.toFixed(1)}<span class="unit">%</span>`;
+        $("cpuBigVal").className = `cpu-big-val st-${cpuSt}`;
+        $("cpuFill").style.width = `${Math.min(cpu, 100)}%`;
+        $("cpuFill").className = `meter-fill fill-${cpuSt}`;
+        pushCpu(cpu);
+
+        $("kCpu").innerHTML = `${cpu.toFixed(1)}<span class="unit">%</span>`;
+        $("kCpu").className = `value st-${cpuSt}`;
+        $("kCpuSub").textContent = `${m.host.cpu_count} cores`;
+
+        // Per-core meters
+        const cores = m.cpu.cores
+          .map((c, i) => {
+            const st = statusOf(c);
+            return `<div class="core">
+                <span class="c-idx">#${i}</span>
+                <div class="meter"><div class="meter-fill fill-${st}" style="width:${Math.min(c, 100)}%"></div></div>
+                <span class="c-val st-${st}">${c.toFixed(0)}%</span>
+              </div>`;
+          })
+          .join("");
+        $("cores").innerHTML = cores;
+
+        // Memory
+        setMeter(
+          $("memFill"),
+          $("memVal"),
+          m.memory.used_pct,
+          `${m.memory.used_pct.toFixed(0)}%`,
+        );
+        $("kMem").innerHTML = `${m.memory.used_pct.toFixed(0)}<span class="unit">%</span>`;
+        $("kMem").className = `value st-${statusOf(m.memory.used_pct)}`;
+        $("kMemSub").textContent = `${fmtBytes(m.memory.used)} / ${fmtBytes(m.memory.total)}`;
+
+        // Swap
+        setMeter(
+          $("swapFill"),
+          $("swapVal"),
+          m.swap.used_pct,
+          `${m.swap.used_pct.toFixed(0)}%`,
+        );
+        $("kSwap").innerHTML = `${m.swap.used_pct.toFixed(0)}<span class="unit">%</span>`;
+        $("kSwap").className = `value st-${statusOf(m.swap.used_pct)}`;
+        $("kSwapSub").textContent =
+          m.swap.total === 0
+            ? "none configured"
+            : `${fmtBytes(m.swap.used)} / ${fmtBytes(m.swap.total)}`;
+
+        // Load average (normalized to core count for the status color)
+        const loadPct = m.host.cpu_count
+          ? (m.load.one / m.host.cpu_count) * 100
+          : 0;
+        const loadSt = statusOf(loadPct);
+        $("kLoad").textContent = m.load.one.toFixed(2);
+        $("kLoad").className = `value st-${loadSt}`;
+        $("kLoadSub").textContent = `5m ${m.load.five.toFixed(2)} · 15m ${m.load.fifteen.toFixed(2)}`;
+
+        // Disks
+        $("disks").innerHTML = m.disks
+          .map((d) => {
+            const st = statusOf(d.used_pct);
+            return `<div class="meter-row">
+                <span class="m-label" title="${d.mount} (${d.file_system})">${d.mount}</span>
+                <div class="meter"><div class="meter-fill fill-${st}" style="width:${Math.min(d.used_pct, 100)}%"></div></div>
+                <span class="m-val st-${st}">${d.used_pct.toFixed(0)}%</span>
+              </div>
+              <div class="sub" style="margin:-0.2rem 0 0.5rem; color:var(--muted); font-size:0.72rem;">
+                ${fmtBytes(d.used)} used · ${fmtBytes(d.available)} free of ${fmtBytes(d.total)}
+              </div>`;
+          })
+          .join("");
+      }
+
+      // --- Polling loop ---
+      let stale = false;
+      async function tick() {
+        try {
+          const r = await fetch("/tools/metrics", { cache: "no-store" });
+          if (!r.ok) throw new Error(r.status);
+          render(await r.json());
+          $("offline").classList.add("d-none");
+          $("updated").className = "updated";
+          $("updated").textContent = `updated ${new Date().toLocaleTimeString()}`;
+          stale = false;
+        } catch (e) {
+          // Keep the last values on screen; just flag that they're stale.
+          if (!stale) {
+            stale = true;
+            $("offline").classList.remove("d-none");
+            $("updated").className = "updated stale";
+            $("updated").textContent = "reconnecting…";
+          }
+        }
+      }
+
+      // Environment banner (same source as the sessions dashboard).
+      fetch("/config", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((c) => {
+          $("envBanner").textContent = `Environment: ${c.environment}`;
+        })
+        .catch(() => {
+          $("envBanner").textContent = "Environment: unknown";
+        });
+
+      tick();
+      setInterval(tick, 2000);
+    </script>
+  </body>
+</html>
