@@ -550,9 +550,10 @@ code {
 }
 
 /* ============================================================
-   Send Message page (send.html)
+   Tool pages (send.html, parse.html)
    ============================================================ */
-.send {
+.send,
+.parse {
   position: relative;
   z-index: 1;
   width: 820px;
@@ -560,14 +561,16 @@ code {
   margin: 3rem 0;
 }
 
-.send-header {
+.send-header,
+.parse-header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1.5rem;
   margin-bottom: 1rem;
 }
-.send-header h1 {
+.send-header h1,
+.parse-header h1 {
   font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -692,4 +695,83 @@ select.control {
 .template-link:hover {
   color: var(--accent-hover);
   text-decoration: underline;
+}
+
+/* FIX Parser results */
+.parse-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  margin-bottom: 1rem;
+}
+.parse-summary .msgtype {
+  font-size: 0.9rem;
+  color: var(--fg);
+}
+.parse-summary .msgtype strong {
+  color: var(--accent);
+}
+.chip {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.25em 0.6em;
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.chip.ok {
+  color: var(--s1);
+  border-color: var(--s1);
+}
+.chip.bad {
+  color: var(--s3);
+  border-color: var(--s3);
+}
+
+table.parse-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.parse-table th {
+  color: var(--accent);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.7rem;
+  text-align: left;
+  border-bottom: 2px solid var(--accent);
+  padding: 0.4rem 0.6rem;
+}
+table.parse-table td {
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  font-size: 0.82rem;
+}
+table.parse-table tr:hover > td {
+  background: var(--surface-hover);
+}
+.parse-table .c-tag {
+  color: var(--code-fg);
+  width: 3.5rem;
+}
+.parse-table .c-name {
+  color: var(--muted);
+}
+.parse-table .c-val {
+  color: var(--fg);
+  word-break: break-all;
+}
+.parse-table .c-dec {
+  color: var(--s1);
+}
+.parse-table tr.unknown .c-name {
+  color: var(--s2);
+  font-style: italic;
+}
+.parse-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
 }

@@ -1,4 +1,5 @@
 mod testcounterparty;
+mod dict_defaults;
 mod fix_app;
 mod logger;
 mod metrics;
@@ -34,7 +35,10 @@ fn run_fix(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let logger = logger::FileLogger::new(logger::LOG_DIR)?;
     let log_factory = LogFactory::try_new(&logger)?;
-    let settings = SessionSettings::try_from_path("sessions.cfg")?;
+    // Fill in a default dictionary for any session that lacks one, so validation
+    // being on can't fail startup with "DataDictionary not defined".
+    let settings_path = dict_defaults::prepare("sessions.cfg");
+    let settings = SessionSettings::try_from_path(&settings_path)?;
     let store_factory = MemoryMessageStoreFactory::new();
     let callbacks = FixApp::new(
         status.clone(),

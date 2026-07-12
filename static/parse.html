@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FIX Parser · FIX Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="styles.css" />
+  </head>
+  <body>
+    <header id="envBanner" class="env-banner">Environment: …</header>
+    <div class="parse">
+      <div class="parse-header">
+        <h1 class="h5">FIX Parser</h1>
+        <a href="/" class="back-link">← Sessions</a>
+      </div>
+
+      <!-- Dictionary / session picker -->
+      <div class="panel">
+        <div class="field" style="margin-bottom: 0">
+          <label class="field-label" for="session">Dictionary (from session)</label>
+          <select id="session" class="control">
+            <option disabled>loading…</option>
+          </select>
+          <div id="dictNote" class="hint">
+            Decoded against the FIX data dictionary this session is configured to
+            use (its <code>DataDictionary</code> in <code>sessions.cfg</code>).
+          </div>
+        </div>
+      </div>
+
+      <!-- Message input -->
+      <div class="panel">
+        <div class="field" style="margin-bottom: 0">
+          <label class="field-label" for="raw">Raw FIX message</label>
+          <textarea
+            id="raw"
+            class="control"
+            spellcheck="false"
+            placeholder="Paste a raw FIX message — SOH-, |-, or ^-delimited, e.g.&#10;8=FIX.4.2|9=65|35=D|49=FIXDEV|56=TEST|34=2|52=20260712-12:00:00|11=ORD-1|55=EUR/USD|54=1|38=1000|40=2|44=1.2345|10=004"
+          ></textarea>
+          <div class="hint">
+            Parses on input. Fields are <code>tag=value</code> separated by
+            <code>|</code>, <code>^</code>, or SOH. Nothing is sent anywhere —
+            decoding runs in your browser.
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">Breakdown</div>
+      <div class="panel">
+        <div id="summary" class="parse-summary"></div>
+        <div id="output">
+          <div class="parse-empty">Paste a FIX message above to decode it.</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let sessions = [];
+      // Dictionaries keyed by session id: { fields: {tag:{name,type,enums}}, meta } | null (none configured)
+      const dictCache = {};
+      let currentDict = null;
+      let currentDictMsg = "";
+
+      function escapeHtml(s) {
+        return String(s).replace(
+          /[&<>]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c],
+        );
+      }
+
+      // Parse a QuickFIX data-dictionary XML string into { fields, meta }.
+      function buildDict(xmlText) {
+        const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+        if (doc.querySelector("parsererror"))
+          throw new Error("could not parse dictionary XML");
+        const root = doc.querySelector("fix");
+        const meta = root
+          ? `FIX.${root.getAttribute("major")}.${root.getAttribute("minor")}`
+          : "";
+        const fields = {};
+        doc.querySelectorAll("fields > field").forEach((f) => {
+          const num = f.getAttribute("number");
+          if (!num) return;
+          const enums = {};
+          f.querySelectorAll("value").forEach((v) => {
+            enums[v.getAttribute("enum")] = v.getAttribute("description");
+          });
+          fields[num] = {
+            name: f.getAttribute("name") || "",
+            type: f.getAttribute("type") || "",
+            enums,
+          };
+        });
+        return { fields, meta };
+      }
+
+      // Split raw input into ordered {tag, value} fields, tolerating SOH, |, ^,
+      // and stray whitespace/newlines.
+      function parseFields(raw) {
+        const fields = [];
+        for (const part of raw.split(/[\x01|^\n\r]+/)) {
+          const p = part.trim();
+          if (!p) continue;
+          const eq = p.indexOf("=");
+          if (eq < 0) continue;
+          const tag = p.slice(0, eq).trim();
+          const value = p.slice(eq + 1);
+          fields.push({ tag, value, badTag: !/^\d+$/.test(tag) });
+        }
+        return fields;
+      }
+
+      // Recompute BodyLength (9) and CheckSum (10) from the ordered fields and
+      // compare against the supplied values. Dictionary-independent.
+      function validate(fields) {
+        const soh = fields
+          .filter((f) => !f.badTag)
+          .map((f) => `${f.tag}=${f.value}\x01`);
+        const tags = fields.filter((f) => !f.badTag).map((f) => f.tag);
+        const i10 = tags.indexOf("10");
+        const i9 = tags.indexOf("9");
+        const end = i10 >= 0 ? i10 : soh.length;
+        const out = {};
+        if (i10 >= 0) {
+          const s = soh.slice(0, end).join("");
+          let sum = 0;
+          for (let i = 0; i < s.length; i++) sum += s.charCodeAt(i) & 0xff;
+          const computed = String(sum % 256).padStart(3, "0");
+          const given = fields.find((f) => f.tag === "10").value.trim();
+          out.checksum = { computed, given, ok: computed === given };
+        }
+        if (i9 >= 0) {
+          const s = soh.slice(i9 + 1, end).join("");
+          const computed = s.length;
+          const given = parseInt(fields.find((f) => f.tag === "9").value, 10);
+          out.bodylength = { computed, given, ok: computed === given };
+        }
+        return out;
+      }
+
+      function fieldName(tag) {
+        const f = currentDict && currentDict.fields[tag];
+        return f ? f.name : "";
+      }
+      function decodeEnum(tag, value) {
+        const f = currentDict && currentDict.fields[tag];
+        return f && f.enums[value] ? f.enums[value] : "";
+      }
+
+      function render() {
+        const raw = $("raw").value;
+        const summary = $("summary");
+        const output = $("output");
+        const fields = parseFields(raw);
+
+        if (fields.length === 0) {
+          summary.innerHTML = "";
+          output.innerHTML =
+            '<div class="parse-empty">Paste a FIX message above to decode it.</div>';
+          return;
+        }
+
+        const chips = [];
+        const msg = fields.find((f) => f.tag === "35");
+        if (msg) {
+          const meaning = decodeEnum("35", msg.value) || "Unknown";
+          chips.push(
+            `<span class="msgtype">Message: <strong>${escapeHtml(meaning)}</strong> (35=${escapeHtml(msg.value)})</span>`,
+          );
+        }
+        if (currentDict && currentDict.meta) {
+          chips.push(`<span class="chip">${escapeHtml(currentDict.meta)}</span>`);
+        }
+        const v = validate(fields);
+        if (v.bodylength) {
+          const c = v.bodylength;
+          chips.push(
+            `<span class="chip ${c.ok ? "ok" : "bad"}">BodyLength ${c.ok ? "✓" : `✗ got ${c.given}, calc ${c.computed}`}</span>`,
+          );
+        }
+        if (v.checksum) {
+          const c = v.checksum;
+          chips.push(
+            `<span class="chip ${c.ok ? "ok" : "bad"}">CheckSum ${c.ok ? "✓" : `✗ got ${c.given}, calc ${c.computed}`}</span>`,
+          );
+        }
+        summary.innerHTML = chips.join("");
+
+        const rows = fields
+          .map((f) => {
+            if (f.badTag) {
+              return `<tr class="unknown">
+                  <td class="c-tag">${escapeHtml(f.tag)}</td>
+                  <td class="c-name">non-numeric tag</td>
+                  <td class="c-val">${escapeHtml(f.value)}</td>
+                  <td class="c-dec"></td>
+                </tr>`;
+            }
+            const name = fieldName(f.tag);
+            const dec = decodeEnum(f.tag, f.value);
+            const known = !currentDict || name;
+            return `<tr${known ? "" : ' class="unknown"'}>
+                <td class="c-tag">${escapeHtml(f.tag)}</td>
+                <td class="c-name">${escapeHtml(name || (currentDict ? "unknown tag" : "—"))}</td>
+                <td class="c-val">${escapeHtml(f.value)}</td>
+                <td class="c-dec">${dec ? escapeHtml(dec) : ""}</td>
+              </tr>`;
+          })
+          .join("");
+
+        output.innerHTML = `<table class="parse-table">
+            <thead>
+              <tr><th>Tag</th><th>Field</th><th>Value</th><th>Decoded</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      }
+
+      async function loadDictionary(id) {
+        if (id in dictCache) {
+          currentDict = dictCache[id];
+          currentDictMsg = currentDict ? "" : "no dictionary configured";
+          updateDictNote();
+          render();
+          return;
+        }
+        setDictNote("loading dictionary…");
+        try {
+          const r = await fetch(`/tools/dictionary?id=${encodeURIComponent(id)}`, {
+            cache: "no-store",
+          });
+          if (r.status === 404) {
+            dictCache[id] = null;
+            currentDict = null;
+            currentDictMsg = "no data dictionary configured for this session";
+          } else if (!r.ok) {
+            throw new Error(`HTTP ${r.status}`);
+          } else {
+            const xml = await r.text();
+            const dict = buildDict(xml);
+            dictCache[id] = dict;
+            currentDict = dict;
+            currentDictMsg = "";
+          }
+        } catch (e) {
+          currentDict = null;
+          currentDictMsg = "could not load dictionary: " + e.message;
+        }
+        updateDictNote();
+        render();
+      }
+
+      function setDictNote(text) {
+        $("dictNote").textContent = text;
+      }
+      function updateDictNote() {
+        if (currentDict) {
+          const n = Object.keys(currentDict.fields).length;
+          setDictNote(
+            `Decoding against ${currentDict.meta || "the session's"} dictionary (${n} fields).`,
+          );
+        } else {
+          setDictNote(
+            (currentDictMsg || "no dictionary") +
+              " — showing tags/values without field names.",
+          );
+        }
+      }
+
+      function renderSessions() {
+        const sel = $("session");
+        sel.innerHTML = "";
+        if (sessions.length === 0) {
+          const o = document.createElement("option");
+          o.textContent = "(no sessions)";
+          o.disabled = true;
+          sel.appendChild(o);
+          currentDict = null;
+          setDictNote("No sessions configured — showing tags/values only.");
+          render();
+          return;
+        }
+        for (const s of sessions) {
+          const o = document.createElement("option");
+          o.value = s.SessionID;
+          o.textContent = s.SessionID;
+          sel.appendChild(o);
+        }
+        loadDictionary(sel.value);
+      }
+
+      async function loadSessions() {
+        try {
+          const r = await fetch("/sessions", { cache: "no-store" });
+          const d = await r.json();
+          sessions = d.sessions || [];
+        } catch {
+          sessions = [];
+        }
+        renderSessions();
+      }
+
+      // Environment banner (same source as the other pages).
+      fetch("/config", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((c) => {
+          $("envBanner").textContent = `Environment: ${c.environment}`;
+        })
+        .catch(() => {
+          $("envBanner").textContent = "Environment: unknown";
+        });
+
+      $("session").addEventListener("change", (e) => loadDictionary(e.target.value));
+      $("raw").addEventListener("input", render);
+
+      loadSessions();
+    </script>
+  </body>
+</html>

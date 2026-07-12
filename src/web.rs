@@ -13,7 +13,9 @@ use std::io::{Read, Seek, SeekFrom};
 
 use axum::{
     extract::{Query, State},
+    http::{header, StatusCode},
     response::sse::{Event, KeepAlive, Sse},
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
@@ -291,6 +293,83 @@ async fn send_csv(
     }
 }
 
+// --- Tools: FIX data dictionary (for the parser) ---
+
+/// Resolve the `DataDictionary` XML path configured for a session (id repr
+/// "FIX.4.2:FIXDEV->TEST"), from `sessions.cfg` — the session's `[SESSION]`
+/// block, falling back to `[DEFAULT]`. Read fresh so a config edit is picked up
+/// without a restart. Returns `None` if the session isn't found or no
+/// `DataDictionary` is configured.
+fn resolve_data_dictionary(id: &str) -> Option<std::path::PathBuf> {
+    let (begin, rest) = id.split_once(':')?;
+    let (sender, target) = rest.split_once("->")?;
+    let text = std::fs::read_to_string("sessions.cfg").ok()?;
+
+    let is_ours = |m: &std::collections::HashMap<String, String>| {
+        m.get("BeginString").map(String::as_str) == Some(begin)
+            && m.get("SenderCompID").map(String::as_str) == Some(sender)
+            && m.get("TargetCompID").map(String::as_str) == Some(target)
+    };
+
+    let mut section: Option<String> = None;
+    let mut cur: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut default_dd: Option<String> = None;
+    let mut session_dd: Option<String> = None;
+
+    // Fold the just-finished section into the running result.
+    let flush = |section: &Option<String>,
+                     cur: &std::collections::HashMap<String, String>,
+                     default_dd: &mut Option<String>,
+                     session_dd: &mut Option<String>| {
+        match section.as_deref() {
+            Some("DEFAULT") => *default_dd = cur.get("DataDictionary").cloned(),
+            Some("SESSION") if is_ours(cur) => *session_dd = cur.get("DataDictionary").cloned(),
+            _ => {}
+        }
+    };
+
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if line.starts_with('[') && line.ends_with(']') {
+            flush(&section, &cur, &mut default_dd, &mut session_dd);
+            section = Some(line[1..line.len() - 1].to_ascii_uppercase());
+            cur.clear();
+            continue;
+        }
+        if let Some((k, v)) = line.split_once('=') {
+            cur.insert(k.trim().to_string(), v.trim().to_string());
+        }
+    }
+    flush(&section, &cur, &mut default_dd, &mut session_dd);
+
+    session_dd.or(default_dd).map(std::path::PathBuf::from)
+}
+
+/// Serve the FIX data dictionary XML a session is configured to use, so the
+/// parser tool can decode messages against the same dictionary the session
+/// references. The path comes from trusted config (`sessions.cfg`), not the
+/// client.
+async fn dictionary(Query(q): Query<SendQuery>) -> impl IntoResponse {
+    match resolve_data_dictionary(&q.id) {
+        None => (
+            StatusCode::NOT_FOUND,
+            format!("no DataDictionary configured for session {}", q.id),
+        )
+            .into_response(),
+        Some(path) => match std::fs::read(&path) {
+            Ok(bytes) => ([(header::CONTENT_TYPE, "application/xml")], bytes).into_response(),
+            Err(e) => (
+                StatusCode::NOT_FOUND,
+                format!("dictionary file {} not readable: {e}", path.display()),
+            )
+                .into_response(),
+        },
+    }
+}
+
 pub async fn serve(state: AppState) {
     // Keep the host metrics fresh in the background so /tools/metrics is a cheap
     // read and CPU usage reflects a real sampling interval.
@@ -309,6 +388,7 @@ pub async fn serve(state: AppState) {
         .route("/tools/metrics", get(metrics))
         .route("/tools/send", post(send_message))
         .route("/tools/send/csv", post(send_csv))
+        .route("/tools/dictionary", get(dictionary))
         .with_state(state)
         .fallback_service(ServeDir::new("static"));
 

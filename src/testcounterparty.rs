@@ -36,15 +36,30 @@ impl ApplicationCallback for TestCounterparty {
 
         let mut exec = Message::new();
         let _ = exec.with_header_mut(|h| h.set_field(35, "8"));
+        // Echo the order's identity/instrument fields back.
         for tag in [11, 55, 54, 38, 44] {
             if let Some(v) = msg.get_field(tag) {
                 let _ = exec.set_field(tag, v);
             }
         }
+        // Required ExecutionReport fields (validated when the initiator runs with
+        // UseDataDictionary=Y). This is a plain "accepted, unfilled" ack, so
+        // nothing is filled: CumQty/AvgPx = 0 and LeavesQty = the full order qty.
+        let order_qty = msg.get_field(38).unwrap_or_else(|| "0".to_string());
         let _ = exec.set_field(37, "ORDER-XYZ"); // OrderID
         let _ = exec.set_field(17, "EXEC-1"); // ExecID
         let _ = exec.set_field(150, "0"); // ExecType = New
         let _ = exec.set_field(39, "0"); // OrdStatus = New
+        let _ = exec.set_field(151, order_qty.as_str()); // LeavesQty
+        let _ = exec.set_field(14, "0"); // CumQty
+        let _ = exec.set_field(6, "0"); // AvgPx
+        // ExecTransType (20) is required in FIX <= 4.2 but was removed in 4.3+,
+        // where setting it would itself fail validation — so only add it for the
+        // older versions, keyed off the session's BeginString.
+        let begin = session.get_begin_string().unwrap_or_default();
+        if matches!(begin.as_str(), "FIX.4.0" | "FIX.4.1" | "FIX.4.2") {
+            let _ = exec.set_field(20, "0"); // ExecTransType = New
+        }
 
         if let Err(e) = send_to_target(exec, session) {
             eprintln!("Test testcounterparty: failed to send ExecutionReport: {e}");
