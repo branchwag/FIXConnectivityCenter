@@ -222,6 +222,17 @@ code {
   white-space: nowrap;
 }
 
+/* Only the "Connecting"/"Listening" word pulses, not the button box/border —
+   the animation lives on a <span> around the label. Mirrors Tailwind's
+   animate-pulse (opacity 1 -> .5 -> 1 over 2s on an ease-in-out cubic-bezier). */
+@keyframes fixConnectingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.pulse-label {
+  animation: fixConnectingPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 /* Status dots reuse Bootstrap text-* utilities; retint them (utilities are
    !important, so override in kind). */
 .text-success { color: var(--s1) !important; }

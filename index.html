@@ -111,7 +111,7 @@
         }
         if (s.started !== false) {
           const label = s.direction === "acceptor" ? "Listening" : "Connecting";
-          return `<button class="btn btn-sm btn-outline-secondary" disabled>${label}</button>`;
+          return `<button class="btn btn-sm btn-outline-secondary" disabled><span class="pulse-label">${label}</span></button>`;
         }
         return `<button class="btn btn-sm btn-outline-success" data-id="${id}" data-action="start">Start</button>`;
       }
