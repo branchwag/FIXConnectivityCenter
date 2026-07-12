@@ -4,6 +4,8 @@ An app built with Rust to manage FIX sessions. It runs a FIX engine (via the [`q
 QuickFIX C++ engine) and serves a status dashboard with tools to monitor host
 health and send FIX messages on demand.
 
+![FIX Connectivity Center dashboard — live session status and the Tools section (Machine Health, Send Message, FIX Parser, Test Counterparty Engine)](fixconnectivitycenter.png)
+
 ## Build & run
 
 Requires a C/C++ toolchain + cmake (the `quickfix` crate builds libquickfix).
