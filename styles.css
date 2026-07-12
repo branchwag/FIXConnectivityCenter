@@ -197,9 +197,13 @@ code {
   box-shadow: 0 0 26px -10px rgba(79,195,247,0.4);
 }
 
+/* Vertical gap between stacked tool cards (order-independent). */
+.tools .tool-card + .tool-card {
+  margin-top: 0.85rem;
+}
+
 /* A tool-card that is itself a link to a sub-page. */
 .tool-card-link {
-  margin-top: 0.85rem;
   text-decoration: none;
   color: inherit;
   cursor: pointer;
