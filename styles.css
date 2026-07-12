@@ -1,29 +1,66 @@
+@import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap");
+
+:root {
+  --bg: #0a0c12; --surface: #0d1119; --surface-hover: #121a28;
+  --border: rgba(79,195,247,0.18); --border-strong: rgba(79,195,247,0.4);
+  --fg: #d8f0ff; --muted: #8ba9bd;
+  --accent: #4fc3f7; --accent-hover: #7fd4fa;
+  --code-bg: rgba(79,195,247,0.08); --code-fg: #7fd4fa;
+  --grid: rgba(79,195,247,0.04);
+  --s1: #50c878; --s2: #fab432; --s3: #ff5470;
+  --mono: "Share Tech Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
 body {
-  background-color: #36454f;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.65 var(--mono);
+  -webkit-font-smoothing: antialiased;
   display: grid;
   place-items: center;
   min-height: 100vh;
-  margin: 0;
-  color: #e9ecef;
 }
 
+/* Faint cyber grid overlay, fixed behind all content */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Top environment banner — amber caution tone, on-theme */
 .env-banner {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  background-color: #b8860b;
-  color: #fff;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--s2);
   text-align: center;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  padding: 0.5rem 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.75rem;
+  padding: 0.55rem 1rem;
+  text-shadow: 0 0 12px rgba(250,180,50,0.4);
 }
 
+/* Main panel */
 .dashboard {
+  position: relative;
+  z-index: 1;
   min-width: 640px;
   max-width: 90vw;
+  margin: 3rem 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2rem 2.25rem 2.25rem;
 }
 
 .dashboard-header {
@@ -31,32 +68,115 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 2rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.dashboard-header h1 {
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg);
+  text-shadow: 0 0 18px rgba(79,195,247,0.35);
 }
 
 .meta {
-  font-size: 0.85rem;
-  color: #adb5bd;
+  font-size: 0.8rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
 }
 
+/* Offline alert — override Bootstrap's alert-danger to the palette */
+.alert-danger {
+  background: rgba(255,84,112,0.08);
+  border: 1px solid var(--s3);
+  border-radius: 0;
+  color: var(--s3);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 12px rgba(255,84,112,0.3);
+}
+
+/* Sessions table — retint Bootstrap's table via its CSS variables */
 .table {
   width: 100%;
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--fg);
+  --bs-table-hover-bg: var(--surface-hover);
+  --bs-table-hover-color: var(--fg);
+  --bs-table-border-color: var(--border);
 }
 
-.table code {
-  color: #e9ecef;
+.table th {
+  color: var(--accent);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+  border-bottom: 2px solid var(--accent);
 }
 
-.tools {
-  margin-top: 1.5rem;
+.table td { vertical-align: middle; }
+
+/* Inline code (session IDs) */
+code {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  padding: 0.12em 0.45em;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  font-size: 0.88em;
+  font-family: var(--mono);
 }
+.table code { color: var(--code-fg); }
+
+/* Status badges — override Bootstrap fills with outlined, glow-lite chips */
+.badge {
+  font-weight: 400;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.35em 0.7em;
+  border-radius: 0;
+}
+.badge.bg-success {
+  background: rgba(80,200,120,0.12) !important;
+  color: var(--s1) !important;
+  border: 1px solid var(--s1);
+}
+.badge.bg-secondary {
+  background: transparent !important;
+  color: var(--muted) !important;
+  border: 1px solid var(--border-strong);
+}
+
+/* Buttons — Bootstrap 5.1 compiles fixed colors, so restyle each outline
+   variant directly (styles.css loads after Bootstrap, so equal-specificity
+   rules win the cascade). */
+.btn {
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.7rem;
+  font-family: var(--mono);
+}
+.btn-outline-success { color: var(--s1); border-color: var(--s1); }
+.btn-outline-success:hover { background: var(--s1); border-color: var(--s1); color: var(--bg); }
+.btn-outline-danger { color: var(--s3); border-color: var(--s3); }
+.btn-outline-danger:hover { background: var(--s3); border-color: var(--s3); color: var(--bg); }
+.btn-outline-secondary { color: var(--muted); border-color: var(--border-strong); }
+.btn-outline-secondary:hover { background: var(--surface-hover); border-color: var(--border-strong); color: var(--fg); }
+.btn-outline-light { color: var(--accent); border-color: var(--border-strong); }
+.btn-outline-light:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+/* Tools section */
+.tools { margin-top: 2rem; }
 
 .tools-title {
-  color: #adb5bd;
+  color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.16em;
   font-size: 0.75rem;
-  margin-bottom: 0.5rem;
+  font-weight: 400;
+  margin-bottom: 0.75rem;
 }
 
 .tool-card {
@@ -64,20 +184,29 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  background-color: #2b3841;
-  border: 1px solid #46555f;
-  border-radius: 0.5rem;
-  padding: 0.85rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+  padding: 1.1rem 1.35rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.tool-card:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--accent);
+  box-shadow: 0 0 26px -10px rgba(79,195,247,0.4);
 }
 
 .tool-name {
-  font-weight: 600;
+  font-weight: 400;
+  color: var(--fg);
+  letter-spacing: 0.03em;
 }
 
 .tool-desc {
   font-size: 0.8rem;
-  color: #adb5bd;
-  margin-top: 0.15rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
 }
 
 .tool-controls {
@@ -89,6 +218,13 @@ body {
 
 .cp-state {
   font-size: 0.85rem;
-  color: #adb5bd;
+  color: var(--muted);
   white-space: nowrap;
 }
+
+/* Status dots reuse Bootstrap text-* utilities; retint them (utilities are
+   !important, so override in kind). */
+.text-success { color: var(--s1) !important; }
+.text-danger { color: var(--s3) !important; }
+.text-secondary { color: var(--muted) !important; }
+.text-muted { color: var(--muted) !important; }
