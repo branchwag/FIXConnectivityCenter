@@ -2,3 +2,4 @@ go.sum
 notes.txt
 /target
 /logs/
+.env

@@ -67,6 +67,11 @@ fn run_fix(
 
 #[tokio::main]
 async fn main() {
+    // Load .env (if present) into the process environment before anything reads
+    // it — e.g. FIX_ENVIRONMENT for the dashboard banner. Real env vars set by
+    // the shell take precedence; a missing .env is not an error.
+    let _ = dotenvy::dotenv();
+
     let status: SharedStatus = Arc::new(Mutex::new(HashMap::new()));
     let last_event: SharedLastEvent = Arc::new(Mutex::new(None));
     // Per-session enabled state (absent = enabled) driven by the Start/Disconnect
