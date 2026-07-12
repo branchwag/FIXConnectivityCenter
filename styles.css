@@ -659,6 +659,15 @@ select.control {
   color: var(--muted);
   font-size: 0.82rem;
 }
+/* When nested inside the CSV panel, separate it from the controls above. */
+.fmt-doc-divider {
+  margin-top: 1.2rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+}
+.fmt-doc-divider .field-label {
+  margin-bottom: 0.6rem;
+}
 .fmt-doc ul {
   margin: 0.5rem 0;
   padding-left: 1.2rem;

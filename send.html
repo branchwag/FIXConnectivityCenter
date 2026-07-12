@@ -72,39 +72,40 @@
           <span id="csvResult" class="result"></span>
         </div>
         <ul id="csvErrors" class="errors-list"></ul>
-      </div>
 
-      <!-- Accepted CSV format -->
-      <div class="section-title">Accepted CSV format</div>
-      <div class="panel fmt-doc">
-        <p style="margin-top: 0">
-          The first row is a header of column names; each following row is one
-          message.
-        </p>
-        <ul>
-          <li>
-            <code>MsgType</code> — the FIX message type (tag 35), e.g.
-            <code>D</code> for New Order&nbsp;– Single.
-          </li>
-          <li>
-            <strong>Numeric columns</strong> are FIX tags carried in the message
-            body, e.g. <code>55</code>&nbsp;Symbol, <code>54</code>&nbsp;Side,
-            <code>38</code>&nbsp;OrderQty, <code>44</code>&nbsp;Price.
-          </li>
-          <li>
-            <code>SenderCompID</code> / <code>TargetCompID</code> columns are
-            <strong>optional and ignored</strong> — they're filled from the
-            selected session.
-          </li>
-        </ul>
-        <pre>MsgType,SenderCompID,TargetCompID,55,54,38,44
+        <!-- Accepted CSV format -->
+        <div class="fmt-doc fmt-doc-divider">
+          <div class="field-label">Accepted format</div>
+          <p style="margin-top: 0">
+            The first row is a header of column names; each following row is one
+            message.
+          </p>
+          <ul>
+            <li>
+              <code>MsgType</code> — the FIX message type (tag 35), e.g.
+              <code>D</code> for New Order&nbsp;– Single.
+            </li>
+            <li>
+              <strong>Numeric columns</strong> are FIX tags carried in the
+              message body, e.g. <code>55</code>&nbsp;Symbol,
+              <code>54</code>&nbsp;Side, <code>38</code>&nbsp;OrderQty,
+              <code>44</code>&nbsp;Price.
+            </li>
+            <li>
+              <code>SenderCompID</code> / <code>TargetCompID</code> columns are
+              <strong>optional and ignored</strong> — they're filled from the
+              selected session.
+            </li>
+          </ul>
+          <pre>MsgType,SenderCompID,TargetCompID,55,54,38,44
 D,FIXDEV,TEST,EUR/USD,1,1000,1.12345
 D,FIXDEV,TEST,USD/JPY,2,500,150.25</pre>
-        <p style="margin-bottom: 0">
-          <a class="template-link" href="/send_template.csv" download
-            >⭳ Download template (send_template.csv)</a
-          >
-        </p>
+          <p style="margin-bottom: 0">
+            <a class="template-link" href="/send_template.csv" download
+              >⭳ Download template (send_template.csv)</a
+            >
+          </p>
+        </div>
       </div>
     </div>
 
